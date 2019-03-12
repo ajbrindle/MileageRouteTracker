@@ -1,0 +1,129 @@
+package com.sk7software.mileageroutetracker.ui;
+
+import android.app.Activity;
+import android.app.AlertDialog;
+import android.app.Dialog;
+import android.app.DialogFragment;
+import android.content.Context;
+import android.content.DialogInterface;
+import android.os.Bundle;
+import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.inputmethod.InputMethodManager;
+import android.widget.CheckBox;
+import android.widget.EditText;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
+import android.widget.TextView;
+
+import com.sk7software.mileageroutetracker.AppConstants;
+import com.sk7software.mileageroutetracker.R;
+import com.sk7software.mileageroutetracker.model.Route;
+import com.sk7software.mileageroutetracker.network.NetworkCall;
+import com.sk7software.mileageroutetracker.util.PreferencesUtil;
+
+import java.util.Map;
+
+/**
+ * Created by Andrew on 09/03/2018.
+ */
+
+public class SaveJourneyDialogFragment extends DialogFragment {
+
+    private boolean resetDisplay = false;
+    private Context context;
+
+    private static final String TAG = SaveJourneyDialogFragment.class.getSimpleName();
+
+    @Override
+    public void onAttach(Context context) {
+        super.onAttach(context);
+        this.context = context;
+    }
+
+    @Override
+    public Dialog onCreateDialog(Bundle savedInstanceState) {
+        Bundle bundle = getArguments();
+        final Route route = (Route)bundle.getSerializable("route");
+
+        // Use the Builder class for convenient dialog construction
+        AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+        LayoutInflater inflater = getActivity().getLayoutInflater();
+        View view = inflater.inflate(R.layout.content_save_route, null);
+        builder.setView(view);
+
+        final RadioGroup options = (RadioGroup)view.findViewById(R.id.optJourneyType);
+        final EditText txtDescription = (EditText)view.findViewById(R.id.txtDescription);
+        final TextView txtLabel = (TextView)view.findViewById(R.id.txtLabelOther);
+        final RadioButton btnOther = (RadioButton)view.findViewById(R.id.optJourneyOther);
+        final CheckBox chkPassenger = (CheckBox)view.findViewById(R.id.chkPassenger);
+
+        txtDescription.setVisibility(View.GONE);
+        txtLabel.setVisibility(View.GONE);
+
+        btnOther.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                txtDescription.setVisibility(View.VISIBLE);
+                txtLabel.setVisibility(View.VISIBLE);
+                txtDescription.requestFocus();
+                InputMethodManager imm = (InputMethodManager)getActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
+                imm.showSoftInput(txtDescription, InputMethodManager.SHOW_IMPLICIT);
+            }
+        });
+
+        builder.setMessage("Save")
+        .setPositiveButton("Save Route", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int id) {
+                // Save route
+                int checkedId = options.getCheckedRadioButtonId();
+                RadioButton checkedOption = (RadioButton)options.findViewById(checkedId);
+
+                int userId = PreferencesUtil.getInstance().getIntPreference(AppConstants.PREFERENCE_USER_ID);
+                route.setUserId(userId);
+
+                int routeId = PreferencesUtil.getInstance().getIntPreference(AppConstants.PREFERENCE_ROUTE_ID);
+                route.setId(routeId);
+
+                boolean hasPassenger = chkPassenger.isChecked();
+                route.setPassenger(hasPassenger);
+
+                if (checkedOption.getId() == R.id.optJourneyOther) {
+                    route.setSummary(txtDescription.getText().toString());
+                } else {
+                    String summary = checkedOption.getText().toString();
+                    route.setSummary(summary);
+                }
+                NetworkCall.uploadRoute(context, route, new NetworkCall.NetworkCallback() {
+                    @Override
+                    public void onRequestCompleted(Map<String, Integer> callbackData) {
+                        Log.d(TAG, "Route uploaded");
+                    }
+                    @Override
+                    public void onError(Exception e) {
+                        Log.d(TAG, "Route upload failed: " + e.getMessage());
+                    }
+                });
+                resetDisplay = true;
+            }
+        })
+        .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int id) {
+                resetDisplay = false;
+            }
+        });
+
+        // Create the AlertDialog object and return it
+        return builder.create();
+    }
+
+    @Override
+    public void onDismiss(DialogInterface dialog) {
+        super.onDismiss(dialog);
+        Activity activity = getActivity();
+        if (activity instanceof EndJourneyDialogFragment.OnDialogDismissListener) {
+            ((EndJourneyDialogFragment.OnDialogDismissListener)activity).onDismiss(resetDisplay, -1);
+        }
+    }
+}

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <RadioGroup
+        android:id="@+id/optJourneyType"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <RadioButton
+            android:id="@+id/optJourneyOffice"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Office"/>
+        <RadioButton
+            android:id="@+id/optJourneyBlood"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Drop Bloods"/>
+        <RadioButton
+            android:id="@+id/optJourneyVisit"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Patient Visit"/>
+        <RadioButton
+            android:id="@+id/optJourneyOther"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Other"/>
+
+    </RadioGroup>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/txtLabelOther"
+        android:text="Enter a description for this journey:"/>
+
+    <EditText
+        android:id="@+id/txtDescription"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingBottom="10dp" />
+
+    <CheckBox
+        android:id="@+id/chkPassenger"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Tick if carrying a passenger" />
+
+</LinearLayout>

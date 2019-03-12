@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">MileageRouteTracker</string>
+    <string name="title_activity_maps">Mileage Tracker</string>
+    <string name="title_activity_end_journey">End of Journey</string>
+
+    <string-array name="journey_types">
+        <item>Patient Visit</item>
+        <item>Drop Bloods</item>
+        <item>Office</item>
+        <item>Other</item>
+    </string-array>
+
+
+</resources>
