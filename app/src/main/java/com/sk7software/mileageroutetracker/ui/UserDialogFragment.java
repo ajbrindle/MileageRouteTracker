@@ -6,6 +6,7 @@ import android.app.DialogFragment;
 import android.content.Context;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.Button;
@@ -22,6 +23,8 @@ import java.util.Map;
 public class UserDialogFragment extends DialogFragment {
 
     private Context context;
+
+    private static final String TAG = UserDialogFragment.class.getSimpleName();
 
     @Override
     public void onAttach(Context context) {
@@ -67,6 +70,7 @@ public class UserDialogFragment extends DialogFragment {
 
                                 @Override
                                 public void onError(Exception e) {
+                                    Log.d(TAG, "User lookup error: " + e.getMessage());
                                     txtUserPrompt.setText("There was an error looking up your user. Please try again later.");
                                     txtUserPrompt.setTextColor(Color.RED);
                                 }
