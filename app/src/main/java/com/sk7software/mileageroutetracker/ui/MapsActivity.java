@@ -45,6 +45,7 @@ import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.sk7software.mileageroutetracker.AppConstants;
+import com.sk7software.mileageroutetracker.BuildConfig;
 import com.sk7software.mileageroutetracker.db.DatabaseUtil;
 import com.sk7software.mileageroutetracker.network.NetworkCall;
 import com.sk7software.mileageroutetracker.util.LocationUtil;
@@ -66,6 +67,7 @@ import static com.sk7software.mileageroutetracker.AppConstants.MODE_CHOOSE;
 import static com.sk7software.mileageroutetracker.AppConstants.MODE_REVIEW;
 import static com.sk7software.mileageroutetracker.AppConstants.MODE_START;
 import static com.sk7software.mileageroutetracker.AppConstants.MODE_STOP;
+import static com.sk7software.mileageroutetracker.BuildConfig.VERSION_NAME;
 
 public class MapsActivity extends AppCompatActivity
         implements OnMapReadyCallback, EndJourneyDialogFragment.OnDialogDismissListener,
@@ -118,7 +120,7 @@ public class MapsActivity extends AppCompatActivity
             PreferencesUtil.getInstance().addPreference(AppConstants.PREFERENCE_MODE, AppConstants.MODE_START);
         }
 
-        NetworkCall.uploadMissingRoutes(getApplicationContext(), new NetworkCall.NetworkCallback() {
+        NetworkCall.uploadMissingRoutes(getApplicationContext(), loc, new NetworkCall.NetworkCallback() {
             @Override
             public void onRequestCompleted(Map<String, Integer> callbackData) {
                 Log.d(TAG, "Uploading missing routes - check logs for individual progress");
@@ -182,6 +184,9 @@ public class MapsActivity extends AppCompatActivity
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
+
+        // Check if there are any developer messages to display
+        String version = BuildConfig.VERSION_NAME;
     }
 
 

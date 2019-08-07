@@ -12,11 +12,13 @@ import com.android.volley.VolleyError;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
+import com.google.android.gms.maps.model.LatLng;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.sk7software.mileageroutetracker.AppConstants;
 import com.sk7software.mileageroutetracker.db.DatabaseUtil;
 import com.sk7software.mileageroutetracker.model.Route;
+import com.sk7software.mileageroutetracker.util.LocationUtil;
 import com.sk7software.mileageroutetracker.util.PreferencesUtil;
 
 import org.json.JSONException;
@@ -121,7 +123,7 @@ public class NetworkCall {
         getQueue(context).add(request);
     }
 
-    public static void uploadMissingRoutes(final Context context, final NetworkCallback callback) {
+    public static void uploadMissingRoutes(final Context context, final LocationUtil loc, final NetworkCallback callback) {
         List<Route> routes = DatabaseUtil.getInstance(context).fetchRoutesNotUploaded();
 
         if (routes.size() > 0) {
@@ -131,6 +133,17 @@ public class NetworkCall {
 
                 // Set user id
                 route.setUserId(PreferencesUtil.getInstance().getIntPreference(AppConstants.PREFERENCE_USER_ID));
+
+                // Determine if start or end address needs to be populated
+                if (route.isStartUnknown() || route.isEndUnknown()) {
+                    // Try lookup of start location again
+                    Route startEnd = DatabaseUtil.getInstance(context).fetchMarkerPoints(route.getId());
+
+                    if (startEnd.getPoints().size() == 2) {
+                        route.setStartAddress(loc.getAddress(startEnd.getPoints().get(0)));
+                        route.setEndAddress(loc.getAddress(startEnd.getPoints().get(1)));
+                    }
+                }
 
                 // Attempt to upload route
                 uploadRoute(context, route, false, new NetworkCallback() {

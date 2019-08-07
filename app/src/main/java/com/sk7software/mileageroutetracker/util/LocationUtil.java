@@ -44,26 +44,24 @@ public class LocationUtil implements Serializable {
     private String storedAddress;
     private Date storedDate;
 
-    private static final RouteAddress UNKNOWN_ADDRESS = new RouteAddress("Unknown", "Unknown");
-
     public LocationUtil(Context context, GoogleApiClient googleApiClient, Activity activity) {
         this.context = context;
         this.geocoder = new Geocoder(context, Locale.getDefault());
         this.googleApiClient = googleApiClient;
     }
 
-    public RouteAddress getAddress(double lat, double lon) {
+    public RouteAddress getAddress(LatLng location) {
         try {
-            if (!googleApiClient.isConnected()) return UNKNOWN_ADDRESS;
+            if (!googleApiClient.isConnected()) return new RouteAddress();
 
             List<Address> addresses = null;
 
             addresses = geocoder.getFromLocation(
-                    lat, lon,1);
+                    location.latitude, location.longitude,1);
 
             // Handle case where no address was found.
             if (addresses == null || addresses.size()  == 0) {
-                return UNKNOWN_ADDRESS;
+                return new RouteAddress();
             } else {
                 Address address = addresses.get(0);
                 return new RouteAddress(address.getAddressLine(0),
@@ -71,15 +69,15 @@ public class LocationUtil implements Serializable {
             }
         } catch (SecurityException se) {
             Log.d(TAG, "Unable to lookup location as permissions have not been granted");
-            return UNKNOWN_ADDRESS;
+            return new RouteAddress();
         } catch (IOException ioException) {
             // Catch network or other I/O problems.
             Log.d(TAG,"Unable to lookup location - network error");
-            return UNKNOWN_ADDRESS;
+            return new RouteAddress();
         } catch (IllegalArgumentException illegalArgumentException) {
             // Catch invalid latitude or longitude values.
             Log.d(TAG, "Unable to lookup location - location error");
-            return UNKNOWN_ADDRESS;
+            return new RouteAddress();
         }
     }
 
@@ -92,7 +90,7 @@ public class LocationUtil implements Serializable {
     }
 
     public void storeAddress(Location location, String addressType) {
-        RouteAddress address = getAddress(location.getLatitude(), location.getLongitude());
+        RouteAddress address = getAddress(new LatLng(location.getLatitude(), location.getLongitude()));
         PreferencesUtil.getInstance().addPreference(addressType,
                 address.getAddressToUse());
     }

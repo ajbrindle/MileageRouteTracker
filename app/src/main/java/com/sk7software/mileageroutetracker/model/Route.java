@@ -139,6 +139,14 @@ public class Route implements Serializable {
         this.uploaded = uploaded;
     }
 
+    public boolean isStartUnknown() {
+        return startAddress.isUnknown();
+    }
+
+    public boolean isEndUnknown() {
+        return endAddress.isUnknown();
+    }
+
     public void addPoint(LatLng ll) {
         points.add(ll);
     }
@@ -151,10 +159,12 @@ public class Route implements Serializable {
 
     public void lookupAddresses(LocationUtil loc) {
         if (points.size() > 0) {
-            startAddress = loc.getAddress(points.get(0).latitude,
+            LatLng start = new LatLng(points.get(0).latitude,
                     points.get(0).longitude);
-            endAddress = loc.getAddress(points.get(points.size()-1).latitude,
+            LatLng end = new LatLng(points.get(points.size()-1).latitude,
                     points.get(points.size()-1).longitude);
+            startAddress = loc.getAddress(start);
+            endAddress = loc.getAddress(end);
         }
     }
 }

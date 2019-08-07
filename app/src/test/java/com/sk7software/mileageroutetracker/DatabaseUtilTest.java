@@ -1,5 +1,6 @@
 package com.sk7software.mileageroutetracker;
 
+import com.google.android.gms.maps.model.LatLng;
 import com.sk7software.mileageroutetracker.db.DatabaseUtil;
 import com.sk7software.mileageroutetracker.model.Route;
 import com.sk7software.mileageroutetracker.model.RouteAddress;
