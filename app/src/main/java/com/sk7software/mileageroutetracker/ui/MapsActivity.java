@@ -2,11 +2,13 @@ package com.sk7software.mileageroutetracker.ui;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.app.AlertDialog;
 import android.app.DatePickerDialog;
 import android.app.DialogFragment;
 import android.app.ProgressDialog;
 import android.app.TimePickerDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.PorterDuff;
@@ -16,10 +18,10 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Build;
-import android.support.v4.app.ActivityCompat;
+import androidx.core.app.ActivityCompat;
 import android.os.Bundle;
-import android.support.v4.content.ContextCompat;
-import android.support.v7.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
+import androidx.appcompat.app.AppCompatActivity;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -44,6 +46,7 @@ import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.sk7software.mileageroutetracker.AppConstants;
 import com.sk7software.mileageroutetracker.db.DatabaseUtil;
+import com.sk7software.mileageroutetracker.network.NetworkCall;
 import com.sk7software.mileageroutetracker.util.LocationUtil;
 import com.sk7software.mileageroutetracker.R;
 import com.sk7software.mileageroutetracker.model.Route;
@@ -57,6 +60,7 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 import static com.sk7software.mileageroutetracker.AppConstants.MODE_CHOOSE;
 import static com.sk7software.mileageroutetracker.AppConstants.MODE_REVIEW;
@@ -114,6 +118,17 @@ public class MapsActivity extends AppCompatActivity
             PreferencesUtil.getInstance().addPreference(AppConstants.PREFERENCE_MODE, AppConstants.MODE_START);
         }
 
+        NetworkCall.uploadMissingRoutes(getApplicationContext(), new NetworkCall.NetworkCallback() {
+            @Override
+            public void onRequestCompleted(Map<String, Integer> callbackData) {
+                Log.d(TAG, "Uploading missing routes - check logs for individual progress");
+            }
+
+            @Override
+            public void onError(Exception e) {
+                Log.d(TAG, "Uploading missing routes FAILED");
+            }
+        });
         btnStart = (Button)findViewById(R.id.btnStart);
         btnStop = (Button)findViewById(R.id.btnStop);
         btnChoose = (Button)findViewById(R.id.btnChoose);
@@ -227,13 +242,17 @@ public class MapsActivity extends AppCompatActivity
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         int mode = PreferencesUtil.getInstance().getIntPreference(AppConstants.PREFERENCE_MODE);
+        boolean actionConfirm = false;
 
         switch (item.getItemId()) {
+            case R.id.action_confirm:
+                actionConfirm = true;
             case R.id.action_review:
                 // Review routes for date
                 if (mode == AppConstants.MODE_START) {
                     // Pick date
                     final Calendar c = Calendar.getInstance();
+                    final boolean uploadFailedOnly = actionConfirm;
                     new DatePickerDialog(this,
                         new DatePickerDialog.OnDateSetListener() {
 
@@ -245,7 +264,7 @@ public class MapsActivity extends AppCompatActivity
                                 Log.d(TAG, "Looking up for date: " +
                                         new SimpleDateFormat(AppConstants.DATE_TIME_FORMAT).format(c.getTime()));
                                 routes = DatabaseUtil.getInstance(getApplicationContext())
-                                        .fetchSavedRoutes(c.getTime());
+                                        .fetchSavedRoutes(c.getTime(), uploadFailedOnly);
                                 Log.d(TAG, "Fetched routes: " + routes.size());
 
                                 // Go into review mode
@@ -346,11 +365,25 @@ public class MapsActivity extends AppCompatActivity
     }
 
     private void plotResult(List<Route> result, boolean clear) {
-        routes.addAll(result);
+        if (result != null) {
+            routes.addAll(result);
 
-        // Traversing through all the routes
-        for (int i = 0; i < result.size(); i++) {
-            plotSingleRoute(result.get(i), false, clear && i==0);
+            // Traversing through all the routes
+            for (int i = 0; i < result.size(); i++) {
+                plotSingleRoute(result.get(i), false, clear && i == 0);
+            }
+        } else {
+            new AlertDialog.Builder(MapsActivity.this)
+                    .setTitle("Route")
+                    .setMessage("There was an error looking up the route. " +
+                            "Please check your network connection.")
+                    .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int which) {
+                            setup();
+                        }
+                    })
+                    .setIcon(android.R.drawable.ic_dialog_alert)
+                    .show();
         }
     }
 
@@ -361,7 +394,7 @@ public class MapsActivity extends AppCompatActivity
         startEnd.add(route.getPoints().get(route.getPoints().size()-1));
         setupMap(startEnd, clear);
 
-        SimpleDateFormat sdf = new SimpleDateFormat("HH:mm");
+        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm");
         String info = sdf.format(route.getStartTime()) + " " +
                 route.getStartAddress() + " to " + route.getEndAddress() +
                 " (" + route.getFormattedDistance() + ")";

@@ -37,6 +37,7 @@ public class Route implements Serializable {
     private RouteAddress startAddress;
     private RouteAddress endAddress;
     private String passenger;
+    private String uploaded;
 
     public Route() {
         synchronized(this) {
@@ -128,6 +129,14 @@ public class Route implements Serializable {
 
     public void setPassenger(boolean hasPassenger) {
         this.passenger = (hasPassenger ? "Y" : "N");
+    }
+
+    public String getUploaded() {
+        return uploaded;
+    }
+
+    public void setUploaded(String uploaded) {
+        this.uploaded = uploaded;
     }
 
     public void addPoint(LatLng ll) {

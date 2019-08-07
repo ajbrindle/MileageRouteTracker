@@ -88,9 +88,34 @@ public class DatabaseUtilTest {
         r.setStartAddress(new RouteAddress("Start", "AB1 2CD"));
         r.setEndAddress(new RouteAddress("End", "WX9 8YZ"));
         r.setDistance(10000);
+        r.setPassenger(true);
         db.saveRoute(r);
         assertTrue(countRows("SAVED_ROUTE", db) == 1);
         assertTrue(countRows("SAVED_MARKER", db) == 5);
+    }
+
+    @Test
+    public void testUpdateRoute() {
+        Date now = new Date();
+        routeId = TestUtilities.insertFullRoute(db, now);
+        Route r = db.fetchRoute(routeId);
+        r.setSummary("Test");
+        r.setStartAddress(new RouteAddress("Start", "AB1 2CD"));
+        r.setEndAddress(new RouteAddress("End", "WX9 8YZ"));
+        r.setDistance(10000);
+        r.setPassenger(false);
+        db.saveRoute(r);
+
+        // Check that it is saved initially with uploaded N
+        List<Route> routes = db.fetchSavedRoutes(now, true);
+        r = routes.get(0);
+        assertEquals("N", r.getUploaded());
+
+        // Check that route upload is updated to Y
+        db.updateUploadedRoute(r);
+        routes = db.fetchSavedRoutes(now, false);
+        r = routes.get(0);
+        assertEquals("Y", r.getUploaded());
     }
 
     @Test
@@ -132,13 +157,14 @@ public class DatabaseUtilTest {
             r.setStartAddress(new RouteAddress("Start", "AB1 2CD"));
             r.setEndAddress(new RouteAddress("End", "WX9 8YZ"));
             r.setDistance(10000);
+            r.setPassenger(true);
             db.saveRoute(r);
             date.setTime(date.getTime() + AppConstants.DATE_MS_IN_DAY);
         }
 
         SimpleDateFormat sdf = new SimpleDateFormat(AppConstants.DATE_FORMAT);
         Date today = sdf.parse(sdf.format(new Date()));
-        List<Route> routes = db.fetchSavedRoutes(today);
+        List<Route> routes = db.fetchSavedRoutes(today, false);
         System.out.println(sdf.format(routes.get(0).getStartTime()));
         assertEquals(1, routes.size());
         assertEquals(5, routes.get(0).getPoints().size());
@@ -159,6 +185,7 @@ public class DatabaseUtilTest {
             r.setStartAddress(new RouteAddress("Start", "AB1 2CD"));
             r.setEndAddress(new RouteAddress("End", "WX9 8YZ"));
             r.setDistance(10000);
+            r.setPassenger(false);
             db.saveRoute(r);
             date.setTime(date.getTime() + AppConstants.DATE_MS_IN_DAY);
         }
@@ -172,20 +199,4 @@ public class DatabaseUtilTest {
         assertEquals(5, countRows("SAVED_MARKER", db));
         assertEquals(1, countRows("ROUTE", db));
     }
-
-    /*
-    @Test
-    public void testLatestTrack() {
-        insertTracks(2, 0, db);
-        String id = db.getLatestTrackId();
-        assertEquals(id, "abcd1234");
-    }
-
-    @Test
-    public void testGetAllTracks() {
-        insertTracks(3, 0, db);
-        List<Track> tracks = db.getTracks(0);
-        assertEquals(tracks.size(), 3);
-    }
-    */
 }

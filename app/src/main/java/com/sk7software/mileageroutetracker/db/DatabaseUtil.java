@@ -16,7 +16,6 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
-import java.util.GregorianCalendar;
 import java.util.List;
 
 import static com.sk7software.mileageroutetracker.AppConstants.POINT_END;
@@ -27,7 +26,7 @@ import static com.sk7software.mileageroutetracker.AppConstants.POINT_WAYPOINT;
 
 public class DatabaseUtil extends SQLiteOpenHelper {
 
-    public static final int DATABASE_VERSION = 2;
+    public static final int DATABASE_VERSION = 3;
     public static final String DATABASE_NAME = "com.sk7software.mileageroutetracker.db";
     private static final String TAG = DatabaseUtil.class.getSimpleName();
     private static final SimpleDateFormat DATE_TIME_FORMAT = new SimpleDateFormat(AppConstants.DATE_TIME_FORMAT);
@@ -71,16 +70,16 @@ public class DatabaseUtil extends SQLiteOpenHelper {
 
     private void initialise(SQLiteDatabase db, int oldv, int newv) {
         Log.d(TAG, "DB initialise()");
-        String createTable;
+        String sqlStr;
 
         if (oldv == 0) {
-            createTable =
+            sqlStr =
                     "CREATE TABLE ROUTE (" +
                             "ROUTE_ID INTEGER PRIMARY KEY," +
                             "CREATED_TS INTEGER);";
-            db.execSQL(createTable);
+            db.execSQL(sqlStr);
 
-            createTable =
+            sqlStr =
                     "CREATE TABLE ROUTE_POINT (" +
                             "ROUTE_ID INTEGER," +
                             "SEQ_NO INTEGER," +
@@ -89,20 +88,21 @@ public class DatabaseUtil extends SQLiteOpenHelper {
                             "POINT_TP INTEGER," +
                             "PRIMARY KEY (ROUTE_ID, SEQ_NO)" +
                             ");";
-            db.execSQL(createTable);
+            db.execSQL(sqlStr);
 
-            createTable =
+            sqlStr =
                     "CREATE TABLE SAVED_ROUTE (" +
                             "ROUTE_ID INTEGER PRIMARY KEY," +
                             "DESCRIPTION TEXT," +
                             "DISTANCE_M REAL," +
                             "START_ADDR TEXT," +
                             "END_ADDR TEST);";
-            db.execSQL(createTable);
+            db.execSQL(sqlStr);
         }
 
         if (oldv <= 1 && newv >= 2) {
-            createTable =
+            Log.d(TAG, "Creating version: " + newv);
+            sqlStr =
                     "CREATE TABLE SAVED_MARKER (" +
                             "ROUTE_ID INTEGER," +
                             "SEQ_NO INTEGER," +
@@ -110,7 +110,29 @@ public class DatabaseUtil extends SQLiteOpenHelper {
                             "LON REAL," +
                             "PRIMARY KEY (ROUTE_ID, SEQ_NO)" +
                             ");";
-            db.execSQL(createTable);
+            db.execSQL(sqlStr);
+        }
+
+        if (oldv <= 2 && newv >= 3) {
+            Log.d(TAG, "Creating version: " + newv);
+            sqlStr =
+                    "ALTER TABLE SAVED_ROUTE " +
+                            "ADD UPLOAD_IN VARCHAR;";
+            db.execSQL(sqlStr);
+            sqlStr =
+                    "ALTER TABLE SAVED_ROUTE " +
+                            "ADD PASSENGER_IN VARCHAR;";
+            db.execSQL(sqlStr);
+
+            sqlStr =
+                    "UPDATE SAVED_ROUTE " +
+                            "SET UPLOAD_IN = 'Y', PASSENGER_IN = 'N';";
+            db.execSQL(sqlStr);
+
+            sqlStr =
+                    "CREATE INDEX uploaded " +
+                            "ON SAVED_ROUTE(UPLOAD_IN);";
+            db.execSQL(sqlStr);
         }
     }
 
@@ -165,8 +187,8 @@ public class DatabaseUtil extends SQLiteOpenHelper {
 
     public void saveRoute(Route r) {
         String sql = "INSERT INTO SAVED_ROUTE " +
-                "(route_id, description, start_addr, end_addr, distance_m) " +
-                "VALUES (?,?,?,?,?);";
+                "(route_id, description, start_addr, end_addr, distance_m, upload_in, passenger_in) " +
+                "VALUES (?,?,?,?,?,?,?);";
         SQLiteStatement statement = database.compileStatement(sql);
 
         Log.d(TAG, "Saving route: " + r.getId() + ";" +
@@ -182,6 +204,8 @@ public class DatabaseUtil extends SQLiteOpenHelper {
         statement.bindString(col++, r.getStartAddress());
         statement.bindString(col++, r.getEndAddress());
         statement.bindLong(col++, r.getDistance());
+        statement.bindString(col++, "N");
+        statement.bindString(col++, r.getPassenger());
         statement.executeInsert();
         statement.close();
 
@@ -203,7 +227,21 @@ public class DatabaseUtil extends SQLiteOpenHelper {
         }
     }
 
-    // Fetch all points on the route
+    // Update uploaded indicator on saved route
+    public void updateUploadedRoute(Route r) {
+        String sql = "UPDATE SAVED_ROUTE " +
+                "SET upload_in = 'Y' " +
+                "WHERE route_id = ?;";
+        SQLiteStatement statement = database.compileStatement(sql);
+
+        Log.d(TAG, "Updating route: " + r.getId());
+
+        statement.bindLong(1, r.getId());
+        statement.executeUpdateDelete();
+        statement.close();
+    }
+
+        // Fetch all points on the route
     public Route fetchRoute(int routeId) {
         Cursor cursor = null;
         Route route = new Route();
@@ -257,7 +295,7 @@ public class DatabaseUtil extends SQLiteOpenHelper {
         return route;
     }
 
-    public List<Route> fetchSavedRoutes(Date date) {
+    public List<Route> fetchSavedRoutes(Date date, boolean uploadFailedOnly) {
         Cursor cursor = null;
         List<Route> routes = new ArrayList<>();
         Route r = null;
@@ -266,13 +304,19 @@ public class DatabaseUtil extends SQLiteOpenHelper {
         Long startDate = date.getTime();
         Long endDate = date.getTime() + AppConstants.DATE_MS_IN_DAY;
 
+        if (uploadFailedOnly) {
+            // Check for a year from selected date
+            endDate = date.getTime() + (365 * AppConstants.DATE_MS_IN_DAY);
+        }
+
         String sql = "SELECT r.route_id, r.created_ts, s.description, s.start_addr, s.end_addr, " +
-                "s.distance_m, m.lat, m.lon " +
+                "s.distance_m, s.upload_in, m.lat, m.lon " +
                 "FROM ROUTE r, SAVED_ROUTE s, SAVED_MARKER m " +
                 "WHERE r.route_id = s.route_id " +
                 "AND s.route_id = m.route_id " +
                 "AND r.created_ts >= ? " +
                 "AND r.created_ts < ? " +
+                (uploadFailedOnly ? "AND upload_in = 'N' " : "") +
                 "ORDER BY r.created_ts, r.route_id, m.seq_no";
         try {
             int lastId = -1;
@@ -293,10 +337,55 @@ public class DatabaseUtil extends SQLiteOpenHelper {
                     r.setStartAddress(new RouteAddress(cursor.getString(3), ""));
                     r.setEndAddress(new RouteAddress(cursor.getString(4), ""));
                     r.setDistance(cursor.getInt(5));
+                    r.setUploaded(cursor.getString(6));
                 }
 
-                LatLng ll = new LatLng(cursor.getDouble(6), cursor.getDouble(7));
+                LatLng ll = new LatLng(cursor.getDouble(7), cursor.getDouble(8));
                 r.addPoint(ll);
+            }
+        } finally {
+            cursor.close();
+            if (r != null) {
+                routes.add(r);
+            }
+        }
+        return routes;
+    }
+
+    public List<Route> fetchRoutesNotUploaded() {
+        Cursor cursor = null;
+        List<Route> routes = new ArrayList<>();
+        Route r = null;
+
+        String sql = "SELECT r.route_id, r.created_ts, s.description, s.start_addr, s.end_addr, " +
+                "s.distance_m, s.passenger_in " +
+                "FROM ROUTE r, SAVED_ROUTE s " +
+                "WHERE r.route_id = s.route_id " +
+                "AND s.upload_in = 'N' " +
+                "ORDER BY r.created_ts";
+        try {
+            int lastId = -1;
+
+            cursor = database.rawQuery(sql, null);
+            while (cursor.moveToNext()) {
+                int routeId = cursor.getInt(0);
+                if (routeId != lastId) {
+                    // This is a new route
+                    if (r != null) {
+                        routes.add(r);
+                    }
+                    r = new Route();
+                    lastId = routeId;
+                    r.setId(cursor.getInt(0));
+                    r.setStartTime(new Date(cursor.getLong(1)));
+                    r.setSummary(cursor.getString(2));
+                    r.setStartAddress(new RouteAddress(cursor.getString(3), ""));
+                    r.setEndAddress(new RouteAddress(cursor.getString(4), ""));
+                    r.setDistance(cursor.getInt(5));
+
+                    String passengerIn = cursor.getString(6);
+                    r.setPassenger("Y".equals(passengerIn));
+                }
             }
         } finally {
             cursor.close();
@@ -377,5 +466,4 @@ public class DatabaseUtil extends SQLiteOpenHelper {
     public SQLiteDatabase getDatabase() {
         return database;
     }
-
 }

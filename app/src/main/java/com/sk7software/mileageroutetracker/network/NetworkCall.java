@@ -17,11 +17,13 @@ import com.google.gson.GsonBuilder;
 import com.sk7software.mileageroutetracker.AppConstants;
 import com.sk7software.mileageroutetracker.db.DatabaseUtil;
 import com.sk7software.mileageroutetracker.model.Route;
+import com.sk7software.mileageroutetracker.util.PreferencesUtil;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -49,7 +51,7 @@ public class NetworkCall {
         return queue;
     }
 
-    public static void uploadRoute(final Context context, final Route route, final NetworkCallback callback) {
+    public static void uploadRoute(final Context context, final Route route, boolean showProgress, final NetworkCallback callback) {
         Gson gson = new GsonBuilder()
                 .setDateFormat(AppConstants.DATE_TIME_FORMAT)
                 .create();
@@ -64,7 +66,8 @@ public class NetworkCall {
                             new Response.Listener<JSONObject>() {
                                 @Override
                                 public void onResponse(JSONObject response) {
-                                    DatabaseUtil.getInstance(context).saveRoute(route);
+                                    // Update database to show route is uploaded
+                                    DatabaseUtil.getInstance(context).updateUploadedRoute(route);
                                     if (progressDialog.isShowing()) {
                                         progressDialog.dismiss();
                                     }
@@ -86,9 +89,14 @@ public class NetworkCall {
             getQueue(context).add(jsObjRequest);
             progressDialog = new ProgressDialog(context);
             progressDialog.setMessage("Saving Route");
-            progressDialog.show();
+            if (showProgress) {
+                progressDialog.show();
+            }
         } catch (JSONException e) {
             Log.d(TAG, "Error uploading route: " + e.getMessage());
+            if (progressDialog.isShowing()) {
+                progressDialog.dismiss();
+            }
         }
     }
 
@@ -111,5 +119,36 @@ public class NetworkCall {
         );
         request.setRetryPolicy(new DefaultRetryPolicy(5000, 4, 1));
         getQueue(context).add(request);
+    }
+
+    public static void uploadMissingRoutes(final Context context, final NetworkCallback callback) {
+        List<Route> routes = DatabaseUtil.getInstance(context).fetchRoutesNotUploaded();
+
+        if (routes.size() > 0) {
+            Log.d(TAG, "Attempting to upload " + routes.size() + " routes");
+            for (Route r : routes) {
+                final Route route = r;
+
+                // Set user id
+                route.setUserId(PreferencesUtil.getInstance().getIntPreference(AppConstants.PREFERENCE_USER_ID));
+
+                // Attempt to upload route
+                uploadRoute(context, route, false, new NetworkCallback() {
+                    @Override
+                    public void onRequestCompleted(Map<String, Integer> callbackData) {
+                        // Update indicator to show route is uploaded
+                        Log.d(TAG, "Route: " + route.getId() + " (" + route.getSummary() + ") uploaded");
+                    }
+
+                    @Override
+                    public void onError(Exception e) {
+                        Log.d(TAG, "Route: " + route.getId() + " (" + route.getSummary() + ") upload FAILED");
+                        Log.d(TAG, "ERROR: " + e.getMessage());
+                    }
+                });
+            }
+        } else {
+            Log.d(TAG, "No routes to upload");
+        }
     }
 }

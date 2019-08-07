@@ -1,5 +1,7 @@
 package com.sk7software.mileageroutetracker.model;
 
+import com.google.android.gms.maps.model.LatLng;
+
 import java.io.Serializable;
 
 /**
@@ -9,6 +11,7 @@ import java.io.Serializable;
 public class RouteAddress implements Serializable {
     private String line1;
     private String postCode;
+    private LatLng location;
 
     public RouteAddress(String line1, String postCode) {
         this.line1 = line1;
@@ -29,6 +32,14 @@ public class RouteAddress implements Serializable {
 
     public void setPostCode(String postCode) {
         this.postCode = postCode;
+    }
+
+    public LatLng getLocation() {
+        return location;
+    }
+
+    public void setLocation(LatLng location) {
+        this.location = location;
     }
 
     public String getAddressToUse() {

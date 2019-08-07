@@ -7,9 +7,9 @@ import android.app.DialogFragment;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.os.Bundle;
-import android.support.v4.view.GestureDetectorCompat;
-import android.support.v7.widget.LinearLayoutManager;
-import android.support.v7.widget.RecyclerView;
+import androidx.core.view.GestureDetectorCompat;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 import android.util.Log;
 import android.view.GestureDetector;
 import android.view.LayoutInflater;
@@ -17,7 +17,6 @@ import android.view.MotionEvent;
 import android.view.View;
 
 import com.sk7software.mileageroutetracker.R;
-import com.sk7software.mileageroutetracker.db.DatabaseUtil;
 import com.sk7software.mileageroutetracker.model.Route;
 
 import java.util.ArrayList;
@@ -54,7 +53,6 @@ public class EndJourneyDialogFragment extends DialogFragment
             routes.add((Route)bundle.getSerializable(key));
         }
 
-        // Use the Builder class for convenient dialog construction
         AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
         LayoutInflater inflater = getActivity().getLayoutInflater();
         View view = inflater.inflate(R.layout.content_end_journey, null);
@@ -74,13 +72,14 @@ public class EndJourneyDialogFragment extends DialogFragment
                     public void onClick(DialogInterface dialog, int id) {
                         // Save selected route
                         int selectedRoute = routeAdapter.getSelectedItem();
-
                         if (selectedRoute != RouteAdapter.SELECTED_NONE) {
                             Log.d(TAG, "Selected route: " + selectedRoute);
+                            boolean tooLong = isActualRouteTooLong(routes, selectedRoute);
 
                             DialogFragment saveJourney = new SaveJourneyDialogFragment();
                             Bundle bundle = new Bundle();
                             bundle.putSerializable("route", routes.get(selectedRoute));
+                            bundle.putBoolean("warn", tooLong);
                             saveJourney.setArguments(bundle);
                             saveJourney.show(getFragmentManager(), "journey");
                             EndJourneyDialogFragment.this.getDialog().cancel();
@@ -93,6 +92,7 @@ public class EndJourneyDialogFragment extends DialogFragment
                         EndJourneyDialogFragment.this.getDialog().cancel();
                     }
                 });
+
         // Create the AlertDialog object and return it
         return builder.create();
     }
@@ -136,6 +136,18 @@ public class EndJourneyDialogFragment extends DialogFragment
         if (activity instanceof EndJourneyDialogFragment.OnDialogDismissListener) {
             ((EndJourneyDialogFragment.OnDialogDismissListener)activity).onDismiss(false, routeToShow);
         }
+    }
+
+    private boolean isActualRouteTooLong(List<Route> routes, int selectedRoute) {
+        if (routes.get(selectedRoute).getType() != Route.RouteType.ROUTE_TAKEN) {
+            return false;
+        }
+
+        // Check whether route taken is reasonable based on best suggestion
+        int suggestedDistance = routes.get(0).getDistance();
+        int takenDistance = routes.get(selectedRoute).getDistance();
+
+        return (double)takenDistance > (double)suggestedDistance * 1.2;
     }
 
     private class RoutesOnGestureDetectListener extends GestureDetector.SimpleOnGestureListener {

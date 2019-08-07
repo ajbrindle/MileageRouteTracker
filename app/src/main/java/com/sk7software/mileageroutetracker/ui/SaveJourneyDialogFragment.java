@@ -6,6 +6,7 @@ import android.app.Dialog;
 import android.app.DialogFragment;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -19,6 +20,7 @@ import android.widget.TextView;
 
 import com.sk7software.mileageroutetracker.AppConstants;
 import com.sk7software.mileageroutetracker.R;
+import com.sk7software.mileageroutetracker.db.DatabaseUtil;
 import com.sk7software.mileageroutetracker.model.Route;
 import com.sk7software.mileageroutetracker.network.NetworkCall;
 import com.sk7software.mileageroutetracker.util.PreferencesUtil;
@@ -46,6 +48,7 @@ public class SaveJourneyDialogFragment extends DialogFragment {
     public Dialog onCreateDialog(Bundle savedInstanceState) {
         Bundle bundle = getArguments();
         final Route route = (Route)bundle.getSerializable("route");
+        final Boolean showWarning = bundle.getBoolean("warn");
 
         // Use the Builder class for convenient dialog construction
         AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
@@ -61,6 +64,13 @@ public class SaveJourneyDialogFragment extends DialogFragment {
 
         txtDescription.setVisibility(View.GONE);
         txtLabel.setVisibility(View.GONE);
+
+        if (showWarning) {
+            TextView txtWarn = (TextView)view.findViewById(R.id.txtWarning);
+            txtWarn.setText("Please double-check this route before saving. It is a lot longer than " +
+                    "the one recommended by Google. To check it, select CANCEL below and review.");
+            txtWarn.setVisibility(View.VISIBLE);
+        }
 
         btnOther.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -95,7 +105,12 @@ public class SaveJourneyDialogFragment extends DialogFragment {
                     String summary = checkedOption.getText().toString();
                     route.setSummary(summary);
                 }
-                NetworkCall.uploadRoute(context, route, new NetworkCall.NetworkCallback() {
+
+                // Store the route in the device database
+                DatabaseUtil.getInstance(context).saveRoute(route);
+
+                // Upload to server
+                NetworkCall.uploadRoute(context, route, true, new NetworkCall.NetworkCallback() {
                     @Override
                     public void onRequestCompleted(Map<String, Integer> callbackData) {
                         Log.d(TAG, "Route uploaded");
@@ -103,6 +118,7 @@ public class SaveJourneyDialogFragment extends DialogFragment {
                     @Override
                     public void onError(Exception e) {
                         Log.d(TAG, "Route upload failed: " + e.getMessage());
+                        showRouteUploadError();
                     }
                 });
                 resetDisplay = true;
@@ -116,6 +132,19 @@ public class SaveJourneyDialogFragment extends DialogFragment {
 
         // Create the AlertDialog object and return it
         return builder.create();
+    }
+
+    private void showRouteUploadError() {
+        new AlertDialog.Builder(context)
+                .setTitle("Route Upload")
+                .setMessage("There was an error saving the route. " +
+                            "It has been stored on your device and will be saved to the server " +
+                            "next time you launch the app.")
+                .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which) {    }
+                })
+                .setIcon(android.R.drawable.ic_dialog_alert)
+                .show();
     }
 
     @Override
