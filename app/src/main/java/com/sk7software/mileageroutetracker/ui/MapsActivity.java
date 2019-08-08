@@ -187,6 +187,17 @@ public class MapsActivity extends AppCompatActivity
 
         // Check if there are any developer messages to display
         String version = BuildConfig.VERSION_NAME;
+        NetworkCall.getDeveloperMessages(MapsActivity.this, userId, version, new NetworkCall.NetworkCallback() {
+            @Override
+            public void onRequestCompleted(Map<String, Integer> callbackData) {
+
+            }
+
+            @Override
+            public void onError(Exception e) {
+
+            }
+        });
     }
 
 

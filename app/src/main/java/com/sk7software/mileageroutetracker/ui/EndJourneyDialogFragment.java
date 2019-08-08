@@ -31,7 +31,6 @@ public class EndJourneyDialogFragment extends DialogFragment
     private int routeToShow = -1;
     private Context context;
 
-
     private static final String TAG = EndJourneyDialogFragment.class.getSimpleName();
 
     public interface OnDialogDismissListener {

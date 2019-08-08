@@ -1,7 +1,10 @@
 package com.sk7software.mileageroutetracker.network;
 
+import android.app.Activity;
+import android.app.DialogFragment;
 import android.app.ProgressDialog;
 import android.content.Context;
+import android.os.Bundle;
 import android.util.Log;
 
 import com.android.volley.DefaultRetryPolicy;
@@ -9,6 +12,7 @@ import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
+import com.android.volley.toolbox.JsonArrayRequest;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
@@ -17,13 +21,19 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.sk7software.mileageroutetracker.AppConstants;
 import com.sk7software.mileageroutetracker.db.DatabaseUtil;
+import com.sk7software.mileageroutetracker.model.DevMessage;
 import com.sk7software.mileageroutetracker.model.Route;
+import com.sk7software.mileageroutetracker.ui.DeveloperMessageDialogFragment;
+import com.sk7software.mileageroutetracker.ui.EndJourneyDialogFragment;
 import com.sk7software.mileageroutetracker.util.LocationUtil;
 import com.sk7software.mileageroutetracker.util.PreferencesUtil;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +49,8 @@ public class NetworkCall {
 
     private static final String UPLOAD_URL = "http://www.sk7software.co.uk/mileage/upload.php";
     private static final String USER_URL = "http://www.sk7software.co.uk/mileage/user.php";
+    private static final String DEV_MESSAGE_URL = "http://www.sk7software.co.uk/mileage/devmessage.php";
+    private static final String DEV_MESSAGE_UPDATE_URL = "http://www.sk7software.co.uk/mileage/devmessageseen.php";
     private static final String TAG = NetworkCall.class.getSimpleName();
 
     public interface NetworkCallback {
@@ -163,5 +175,88 @@ public class NetworkCall {
         } else {
             Log.d(TAG, "No routes to upload");
         }
+    }
+
+    public static void getDeveloperMessages (final Context context, final int userId, final String version, final NetworkCallback callback) {
+        try {
+            final List<DevMessage> messages = new ArrayList<>();
+            final Gson gson = new GsonBuilder()
+                    .create();
+
+            JsonArrayRequest jsObjRequest = new JsonArrayRequest
+                    (Request.Method.GET, DEV_MESSAGE_URL + "?user=" + userId + "&version=" + version,
+                            null,
+                            new Response.Listener<JSONArray>() {
+                                @Override
+                                public void onResponse(JSONArray response) {
+                                    try {
+                                        for (int i = 0; i < response.length(); i++) {
+                                            JSONObject message = (JSONObject) response.get(i);
+                                            DevMessage m = gson.fromJson(message.toString(), DevMessage.class);
+                                            messages.add(m);
+                                        }
+                                        Log.d(TAG, messages.toString());
+
+                                        // Popup fragment showing latest message
+                                        showMessage(context, messages);
+                                        callback.onRequestCompleted(null);
+                                    } catch (JSONException e) {
+                                        Log.d(TAG, "Error getting dev messages: " + e.getMessage());
+                                    }
+                                }
+                            },
+                            new Response.ErrorListener() {
+                                @Override
+                                public void onErrorResponse(VolleyError error) {
+                                    Log.d(TAG, "Error => " + error.toString());
+                                    callback.onError(error);
+                                }
+                            }
+                    );
+            jsObjRequest.setRetryPolicy(new DefaultRetryPolicy(5000, 1, 1));
+            getQueue(context).add(jsObjRequest);
+        } catch (Exception e) {
+            Log.d(TAG, "Error fetching dev messages: " + e.getMessage());
+        }
+    }
+
+    public static void updateDevMessage(final Context context, final int userId,
+                                        final int messageId, final String showAgain,
+                                        final NetworkCallback callback) {
+        StringRequest request = new StringRequest(DEV_MESSAGE_UPDATE_URL +
+                                                    "?user=" + userId +
+                                                    "&message=" + messageId +
+                                                    "&show=" + showAgain,
+                new Response.Listener<String>() {
+                    @Override
+                    public void onResponse(String response) {
+                        Log.d(TAG, "User message update completed");
+                        callback.onRequestCompleted(null);
+                    }
+                },
+                new Response.ErrorListener() {
+                    @Override
+                    public void onErrorResponse(VolleyError error) {
+                        Log.d(TAG, "Error updating user message: " + error.getMessage());
+                        callback.onError(error);
+                    }
+                }
+        );
+        request.setRetryPolicy(new DefaultRetryPolicy(5000, 4, 1));
+        getQueue(context).add(request);
+    }
+
+    private static void showMessage(Context context, List<DevMessage> messages) {
+        if (messages == null || messages.size() == 0) {
+            return;
+        }
+        DialogFragment devMessage = new DeveloperMessageDialogFragment();
+        Bundle bundle = new Bundle();
+        for (int i=0; i<messages.size(); i++) {
+            bundle.putSerializable("message" + i, messages.get(i));
+        }
+
+        devMessage.setArguments(bundle);
+        devMessage.show(((Activity)context).getFragmentManager(), "devmessage");
     }
 }
