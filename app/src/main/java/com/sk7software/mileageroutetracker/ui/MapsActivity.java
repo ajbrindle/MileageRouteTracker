@@ -244,6 +244,7 @@ public class MapsActivity extends AppCompatActivity
         getMenuInflater().inflate(R.menu.action_menu, menu);
         changeIconColour(menu, R.id.action_manual, Color.WHITE);
         changeIconColour(menu, R.id.action_review, Color.WHITE);
+        changeIconColour(menu, R.id.action_confirm, Color.WHITE);
         return true;
     }
 

@@ -12,6 +12,7 @@ import android.os.Bundle;
 import androidx.fragment.app.Fragment;
 
 import android.text.Html;
+import android.text.method.LinkMovementMethod;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -34,6 +35,8 @@ import java.util.Map;
 public class DeveloperMessageDialogFragment extends DialogFragment {
 
     private static final String TAG = DeveloperMessageDialogFragment.class.getSimpleName();
+    private static final int UPGRADE_MESSAGE = -1;
+
     private CheckBox chkShowAgain;
     private int messageId;
     private Context context;
@@ -75,6 +78,11 @@ public class DeveloperMessageDialogFragment extends DialogFragment {
         }
 
         chkShowAgain = (CheckBox) view.findViewById(R.id.chkNeverAgain);
+
+        if (messageId == UPGRADE_MESSAGE) {
+            chkShowAgain.setVisibility(View.GONE);
+            txtMessage.setMovementMethod(LinkMovementMethod.getInstance());
+        }
 
         // Create the AlertDialog object and return it
         return builder.create();

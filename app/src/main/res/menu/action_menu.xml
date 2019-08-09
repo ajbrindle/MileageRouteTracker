@@ -16,7 +16,7 @@
         app:showAsAction="ifRoom"/>
     <item
         android:id="@+id/action_confirm"
-        android:icon="@drawable/create_icon"
+        android:icon="@drawable/verify_icon"
         android:tint="@android:color/white"
         android:title="Check Uploads"
         app:showAsAction="ifRoom"/>
