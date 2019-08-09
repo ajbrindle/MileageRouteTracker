@@ -1,7 +1,5 @@
 package com.sk7software.mileageroutetracker.model;
 
-import com.google.android.gms.maps.model.LatLng;
-
 import java.io.Serializable;
 
 /**

@@ -1,25 +1,15 @@
 package com.sk7software.mileageroutetracker.util;
 
-import android.annotation.SuppressLint;
 import android.app.Activity;
-import android.app.ProgressDialog;
 import android.content.Context;
 import android.location.Address;
-import android.location.Criteria;
 import android.location.Geocoder;
 import android.location.Location;
-import android.location.LocationListener;
-import android.location.LocationManager;
-import android.os.Bundle;
 import android.util.Log;
 
 import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.model.LatLng;
-import com.sk7software.mileageroutetracker.AppConstants;
-import com.sk7software.mileageroutetracker.db.DatabaseUtil;
 import com.sk7software.mileageroutetracker.model.RouteAddress;
-import com.sk7software.mileageroutetracker.ui.MapsActivity;
 
 import java.io.IOException;
 import java.io.Serializable;

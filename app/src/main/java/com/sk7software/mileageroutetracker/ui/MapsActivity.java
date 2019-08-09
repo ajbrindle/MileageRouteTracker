@@ -18,10 +18,7 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Build;
-import androidx.core.app.ActivityCompat;
 import android.os.Bundle;
-import androidx.core.content.ContextCompat;
-import androidx.appcompat.app.AppCompatActivity;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -46,12 +43,12 @@ import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.sk7software.mileageroutetracker.AppConstants;
 import com.sk7software.mileageroutetracker.BuildConfig;
-import com.sk7software.mileageroutetracker.db.DatabaseUtil;
-import com.sk7software.mileageroutetracker.network.NetworkCall;
-import com.sk7software.mileageroutetracker.util.LocationUtil;
 import com.sk7software.mileageroutetracker.R;
+import com.sk7software.mileageroutetracker.db.DatabaseUtil;
 import com.sk7software.mileageroutetracker.model.Route;
 import com.sk7software.mileageroutetracker.network.FetchUrl;
+import com.sk7software.mileageroutetracker.network.NetworkCall;
+import com.sk7software.mileageroutetracker.util.LocationUtil;
 import com.sk7software.mileageroutetracker.util.PreferencesUtil;
 
 import java.io.UnsupportedEncodingException;
@@ -63,11 +60,14 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+
 import static com.sk7software.mileageroutetracker.AppConstants.MODE_CHOOSE;
 import static com.sk7software.mileageroutetracker.AppConstants.MODE_REVIEW;
 import static com.sk7software.mileageroutetracker.AppConstants.MODE_START;
 import static com.sk7software.mileageroutetracker.AppConstants.MODE_STOP;
-import static com.sk7software.mileageroutetracker.BuildConfig.VERSION_NAME;
 
 public class MapsActivity extends AppCompatActivity
         implements OnMapReadyCallback, EndJourneyDialogFragment.OnDialogDismissListener,

@@ -5,26 +5,19 @@ import android.app.Dialog;
 import android.app.DialogFragment;
 import android.content.Context;
 import android.content.DialogInterface;
-import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-
-import androidx.fragment.app.Fragment;
-
 import android.text.Html;
 import android.text.method.LinkMovementMethod;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.CheckBox;
-import android.widget.EditText;
 import android.widget.TextView;
 
 import com.sk7software.mileageroutetracker.AppConstants;
 import com.sk7software.mileageroutetracker.R;
 import com.sk7software.mileageroutetracker.model.DevMessage;
-import com.sk7software.mileageroutetracker.model.Route;
 import com.sk7software.mileageroutetracker.network.NetworkCall;
 import com.sk7software.mileageroutetracker.util.PreferencesUtil;
 

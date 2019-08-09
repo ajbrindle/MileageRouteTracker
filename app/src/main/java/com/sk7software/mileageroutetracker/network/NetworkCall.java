@@ -16,7 +16,6 @@ import com.android.volley.toolbox.JsonArrayRequest;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
-import com.google.android.gms.maps.model.LatLng;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.sk7software.mileageroutetracker.AppConstants;
@@ -24,7 +23,6 @@ import com.sk7software.mileageroutetracker.db.DatabaseUtil;
 import com.sk7software.mileageroutetracker.model.DevMessage;
 import com.sk7software.mileageroutetracker.model.Route;
 import com.sk7software.mileageroutetracker.ui.DeveloperMessageDialogFragment;
-import com.sk7software.mileageroutetracker.ui.EndJourneyDialogFragment;
 import com.sk7software.mileageroutetracker.util.LocationUtil;
 import com.sk7software.mileageroutetracker.util.PreferencesUtil;
 
@@ -32,7 +30,6 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;

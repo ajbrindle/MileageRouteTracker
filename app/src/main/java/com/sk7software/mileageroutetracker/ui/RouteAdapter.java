@@ -1,7 +1,5 @@
 package com.sk7software.mileageroutetracker.ui;
 
-import androidx.recyclerview.widget.RecyclerView;
-
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -11,6 +9,8 @@ import com.sk7software.mileageroutetracker.R;
 import com.sk7software.mileageroutetracker.model.Route;
 
 import java.util.List;
+
+import androidx.recyclerview.widget.RecyclerView;
 
 /**
  * Created by Andrew on 04/03/2018

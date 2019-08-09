@@ -7,9 +7,6 @@ import android.app.DialogFragment;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.os.Bundle;
-import androidx.core.view.GestureDetectorCompat;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
 import android.util.Log;
 import android.view.GestureDetector;
 import android.view.LayoutInflater;
@@ -21,6 +18,10 @@ import com.sk7software.mileageroutetracker.model.Route;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import androidx.core.view.GestureDetectorCompat;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 public class EndJourneyDialogFragment extends DialogFragment
         implements RecyclerView.OnItemTouchListener, View.OnClickListener {

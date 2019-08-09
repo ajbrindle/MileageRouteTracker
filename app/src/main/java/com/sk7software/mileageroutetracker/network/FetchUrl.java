@@ -8,9 +8,8 @@ import android.util.Log;
 
 import com.google.android.gms.maps.model.LatLng;
 import com.sk7software.mileageroutetracker.AppConstants;
-import com.sk7software.mileageroutetracker.ui.MapsActivity;
-import com.sk7software.mileageroutetracker.ui.UpdateUICallback;
 import com.sk7software.mileageroutetracker.model.Route;
+import com.sk7software.mileageroutetracker.ui.UpdateUICallback;
 import com.sk7software.mileageroutetracker.util.LocationUtil;
 import com.sk7software.mileageroutetracker.util.PreferencesUtil;
 

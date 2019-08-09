@@ -13,8 +13,6 @@ import android.widget.EditText;
 
 import com.sk7software.mileageroutetracker.R;
 
-import java.util.Map;
-
 /**
  * Created by Andrew on 30/03/2018.
  */

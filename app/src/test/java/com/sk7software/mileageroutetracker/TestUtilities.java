@@ -1,7 +1,6 @@
 package com.sk7software.mileageroutetracker;
 
 import android.database.Cursor;
-import android.graphics.Bitmap;
 
 import com.sk7software.mileageroutetracker.db.DatabaseUtil;
 
