@@ -91,7 +91,7 @@ public class DeveloperMessageDialogFragment extends DialogFragment {
         Log.d(TAG, "Calling: [user:" + userId + ", message: " + messageId + ", showAgain: " + showAgain + "]");
         NetworkCall.updateDevMessage(context, userId, messageId, showAgain, new NetworkCall.NetworkCallback() {
             @Override
-            public void onRequestCompleted(Map<String, Integer> callbackData) {
+            public void onRequestCompleted(Object callbackData) {
 
             }
 

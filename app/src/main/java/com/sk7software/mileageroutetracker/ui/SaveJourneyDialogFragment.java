@@ -20,11 +20,10 @@ import android.widget.TextView;
 import com.sk7software.mileageroutetracker.AppConstants;
 import com.sk7software.mileageroutetracker.R;
 import com.sk7software.mileageroutetracker.db.DatabaseUtil;
+import com.sk7software.mileageroutetracker.location.LocationUtil;
 import com.sk7software.mileageroutetracker.model.Route;
 import com.sk7software.mileageroutetracker.network.NetworkCall;
 import com.sk7software.mileageroutetracker.util.PreferencesUtil;
-
-import java.util.Map;
 
 /**
  * Created by Andrew on 09/03/2018.
@@ -46,8 +45,31 @@ public class SaveJourneyDialogFragment extends DialogFragment {
     @Override
     public Dialog onCreateDialog(Bundle savedInstanceState) {
         Bundle bundle = getArguments();
-        final Route route = (Route)bundle.getSerializable("route");
-        final Boolean showWarning = bundle.getBoolean("warn");
+        Route chosenRoute = new Route();
+        boolean routeCalculated = false;
+
+        if (bundle != null && bundle.containsKey("route")) {
+            // Populate chosen route from data passed in
+            chosenRoute = (Route) bundle.getSerializable("route");
+            routeCalculated = true;
+        } else {
+            // Set chosen route from data captured on current session
+            chosenRoute.setPoints(DatabaseUtil.getInstance(context)
+                    .fetchStartEndPoints(PreferencesUtil.getInstance().getIntPreference(AppConstants.PREFERENCE_ROUTE_ID))
+                    .getPoints());
+            chosenRoute.lookupAddresses(LocationUtil.getInstance());
+
+            // Use negative distance to indicate that route still needs to be calculated
+            chosenRoute.setDistance(-99);
+        }
+
+        Boolean showWarning = false;
+
+        if (bundle != null && bundle.containsKey("warn")) {
+            showWarning = bundle.getBoolean("warn");
+        }
+
+        final Route route = chosenRoute;
 
         // Use the Builder class for convenient dialog construction
         AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
@@ -108,18 +130,22 @@ public class SaveJourneyDialogFragment extends DialogFragment {
                 // Store the route in the device database
                 DatabaseUtil.getInstance(context).saveRoute(route);
 
-                // Upload to server
-                NetworkCall.uploadRoute(context, route, true, new NetworkCall.NetworkCallback() {
-                    @Override
-                    public void onRequestCompleted(Map<String, Integer> callbackData) {
-                        Log.d(TAG, "Route uploaded");
-                    }
-                    @Override
-                    public void onError(Exception e) {
-                        Log.d(TAG, "Route upload failed: " + e.getMessage());
-                        showRouteUploadError();
-                    }
-                });
+                // Only attempt upload if route has been calculated
+                if (route.getDistance() >= 0) {
+                    // Upload to server
+                    NetworkCall.uploadRoute(context, route, true, new NetworkCall.NetworkCallback() {
+                        @Override
+                        public void onRequestCompleted(Object callbackData) {
+                            Log.d(TAG, "Route uploaded");
+                        }
+
+                        @Override
+                        public void onError(Exception e) {
+                            Log.d(TAG, "Route upload failed: " + e.getMessage());
+                            showRouteUploadError();
+                        }
+                    });
+                }
                 resetDisplay = true;
             }
         })

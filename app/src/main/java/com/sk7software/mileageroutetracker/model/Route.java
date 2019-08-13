@@ -3,7 +3,7 @@ package com.sk7software.mileageroutetracker.model;
 import android.graphics.Color;
 
 import com.google.android.gms.maps.model.LatLng;
-import com.sk7software.mileageroutetracker.util.LocationUtil;
+import com.sk7software.mileageroutetracker.location.LocationUtil;
 
 import java.io.Serializable;
 import java.text.DecimalFormat;
@@ -152,9 +152,13 @@ public class Route implements Serializable {
     }
 
     public String getFormattedDistance() {
-        double miles;
-        miles = distance * METRES_TO_MILES;
-        return DEC_PL_1.format(miles) + " miles";
+        if (distance >= 0) {
+            double miles;
+            miles = distance * METRES_TO_MILES;
+            return DEC_PL_1.format(miles) + " miles";
+        } else {
+            return "unknown distance";
+        }
     }
 
     public void lookupAddresses(LocationUtil loc) {

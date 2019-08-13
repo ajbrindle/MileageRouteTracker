@@ -9,5 +9,6 @@ import java.util.List;
  */
 
 public interface UpdateUICallback {
-    void updateUI(List<Route> routes);
+    void onSuccess(List<Route> routes);
+    void onFailure();
 }

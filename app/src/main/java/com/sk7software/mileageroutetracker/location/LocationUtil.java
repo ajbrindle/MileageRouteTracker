@@ -1,4 +1,4 @@
-package com.sk7software.mileageroutetracker.util;
+package com.sk7software.mileageroutetracker.location;
 
 import android.app.Activity;
 import android.content.Context;
@@ -10,6 +10,7 @@ import android.util.Log;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.maps.model.LatLng;
 import com.sk7software.mileageroutetracker.model.RouteAddress;
+import com.sk7software.mileageroutetracker.util.PreferencesUtil;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -29,12 +30,22 @@ public class LocationUtil implements Serializable {
     private GoogleApiClient googleApiClient;
     private Context context;
 
-    private Location storedLocation;
     private Location lastLocation;
-    private String storedAddress;
     private Date storedDate;
 
-    public LocationUtil(Context context, GoogleApiClient googleApiClient, Activity activity) {
+    private static LocationUtil INSTANCE;
+
+    public static LocationUtil getInstance() {
+        if (INSTANCE == null) {
+            INSTANCE = new LocationUtil();
+        }
+
+        return INSTANCE;
+    }
+
+    private LocationUtil() {}
+
+    public void init(Context context, GoogleApiClient googleApiClient, Activity activity) {
         this.context = context;
         this.geocoder = new Geocoder(context, Locale.getDefault());
         this.googleApiClient = googleApiClient;
@@ -42,7 +53,10 @@ public class LocationUtil implements Serializable {
 
     public RouteAddress getAddress(LatLng location) {
         try {
-            if (!googleApiClient.isConnected()) return new RouteAddress();
+            if (!googleApiClient.isConnected()) {
+                Log.d(TAG, "Can't fetch addresses - Google API client not initialised");
+                return new RouteAddress();
+            }
 
             List<Address> addresses = null;
 
@@ -99,14 +113,6 @@ public class LocationUtil implements Serializable {
             Log.d(TAG, "Error looking up location: " + e.getMessage());
         }
         return null;
-    }
-
-    public Location getStoredLocation() {
-        return storedLocation;
-    }
-
-    public String getStoredAddress() {
-        return storedAddress;
     }
 
     public void setStoredDate(Date date) {
