@@ -17,6 +17,7 @@ import android.widget.RadioButton;
 import android.widget.RadioGroup;
 import android.widget.TextView;
 
+import com.google.android.gms.maps.model.LatLng;
 import com.sk7software.mileageroutetracker.AppConstants;
 import com.sk7software.mileageroutetracker.R;
 import com.sk7software.mileageroutetracker.db.DatabaseUtil;
@@ -25,14 +26,18 @@ import com.sk7software.mileageroutetracker.model.Route;
 import com.sk7software.mileageroutetracker.network.NetworkCall;
 import com.sk7software.mileageroutetracker.util.PreferencesUtil;
 
+import java.util.List;
+
 /**
  * Created by Andrew on 09/03/2018.
  */
 
-public class SaveJourneyDialogFragment extends DialogFragment {
+public class SaveJourneyDialogFragment extends DialogFragment implements ActivityUpdateInterface {
 
     private boolean resetDisplay = false;
     private Context context;
+    private AlertDialog.Builder progressDialogBuilder;
+    private Dialog progressDialog;
 
     private static final String TAG = SaveJourneyDialogFragment.class.getSimpleName();
 
@@ -132,8 +137,13 @@ public class SaveJourneyDialogFragment extends DialogFragment {
 
                 // Only attempt upload if route has been calculated
                 if (route.getDistance() >= 0) {
+
+                    progressDialogBuilder = new AlertDialog.Builder(context);
+                    progressDialogBuilder.setView(R.layout.progress);
+
                     // Upload to server
-                    NetworkCall.uploadRoute(context, route, true, new NetworkCall.NetworkCallback() {
+                    NetworkCall.uploadRoute(context, route, true,
+                            SaveJourneyDialogFragment.this, new NetworkCall.NetworkCallback() {
                         @Override
                         public void onRequestCompleted(Object callbackData) {
                             Log.d(TAG, "Route uploaded");
@@ -180,4 +190,25 @@ public class SaveJourneyDialogFragment extends DialogFragment {
             ((EndJourneyDialogFragment.OnDialogDismissListener)activity).onDismiss(resetDisplay, -1);
         }
     }
+
+    @Override
+    public void setProgress(boolean showProgressDialog, String progressMessage) {
+        if (showProgressDialog) {
+            progressDialog = progressDialogBuilder
+                    .setMessage(progressMessage)
+                    .create();
+            progressDialog.show();
+        } else {
+            if (progressDialog != null) {
+                progressDialog.dismiss();
+            }
+        }
+
+    }
+
+    @Override
+    public void updateMap(String infoText, List<LatLng> startEnd) {
+        // Not implemented
+    }
+
 }

@@ -1,11 +1,6 @@
 package com.sk7software.mileageroutetracker.network;
 
-import android.app.Activity;
-import android.app.DialogFragment;
-import android.app.ProgressDialog;
 import android.content.Context;
-import android.os.Bundle;
-import android.provider.ContactsContract;
 import android.util.Log;
 
 import com.android.volley.DefaultRetryPolicy;
@@ -24,9 +19,8 @@ import com.sk7software.mileageroutetracker.AppConstants;
 import com.sk7software.mileageroutetracker.db.DatabaseUtil;
 import com.sk7software.mileageroutetracker.model.DevMessage;
 import com.sk7software.mileageroutetracker.model.Route;
-import com.sk7software.mileageroutetracker.ui.DeveloperMessageDialogFragment;
 import com.sk7software.mileageroutetracker.location.LocationUtil;
-import com.sk7software.mileageroutetracker.ui.MapsActivity;
+import com.sk7software.mileageroutetracker.ui.ActivityUpdateInterface;
 import com.sk7software.mileageroutetracker.ui.UpdateUICallback;
 import com.sk7software.mileageroutetracker.util.PreferencesUtil;
 
@@ -45,7 +39,6 @@ import java.util.Map;
 
 public class NetworkCall {
 
-    private static ProgressDialog progressDialog;
     private static RequestQueue queue;
 
     private static final String UPLOAD_URL = "http://www.sk7software.co.uk/mileage/upload.php";
@@ -66,7 +59,8 @@ public class NetworkCall {
         return queue;
     }
 
-    public static void uploadRoute(final Context context, final Route route, boolean showProgress, final NetworkCallback callback) {
+    public static void uploadRoute(final Context context, final Route route, boolean showProgress,
+                                   final ActivityUpdateInterface uiUpdate, final NetworkCallback callback) {
         Gson gson = new GsonBuilder()
                 .setDateFormat(AppConstants.DATE_TIME_FORMAT)
                 .create();
@@ -83,9 +77,7 @@ public class NetworkCall {
                                 public void onResponse(JSONObject response) {
                                     // Update database to show route is uploaded
                                     DatabaseUtil.getInstance(context).updateUploadedRoute(route);
-                                    if (progressDialog.isShowing()) {
-                                        progressDialog.dismiss();
-                                    }
+                                    uiUpdate.setProgress(false, null);
                                     callback.onRequestCompleted(null);
                                 }
                             },
@@ -93,25 +85,17 @@ public class NetworkCall {
                                 @Override
                                 public void onErrorResponse(VolleyError error) {
                                     Log.d(TAG, "Error => " + error.toString());
-                                    if (progressDialog.isShowing()) {
-                                        progressDialog.dismiss();
-                                    }
+                                    uiUpdate.setProgress(false, null);
                                     callback.onError(error);
                                 }
                             }
                     );
             jsObjRequest.setRetryPolicy(new DefaultRetryPolicy(5000, 4, 1));
             getQueue(context).add(jsObjRequest);
-            progressDialog = new ProgressDialog(context);
-            progressDialog.setMessage("Saving Route");
-            if (showProgress) {
-                progressDialog.show();
-            }
+            uiUpdate.setProgress(showProgress, "Saving Route");
         } catch (JSONException e) {
             Log.d(TAG, "Error uploading route: " + e.getMessage());
-            if (progressDialog.isShowing()) {
-                progressDialog.dismiss();
-            }
+            uiUpdate.setProgress(false, null);
         }
     }
 
@@ -136,7 +120,8 @@ public class NetworkCall {
         getQueue(context).add(request);
     }
 
-    public static void uploadMissingRoutes(final Context context, final NetworkCallback callback) {
+    public static void uploadMissingRoutes(final Context context, final ActivityUpdateInterface uiUpdate,
+                                           final NetworkCallback callback) {
         final LocationUtil loc = LocationUtil.getInstance();
         List<Route> missingRoutes = DatabaseUtil.getInstance(context).fetchRoutesNotUploaded();
 
@@ -194,7 +179,7 @@ public class NetworkCall {
                                             DatabaseUtil.getInstance(context).saveMarkers(routeToUse);
 
                                             // Attempt to upload the completed route
-                                            doRouteUpload(context, route);
+                                            doRouteUpload(context, uiUpdate, route);
                                         }
                                     }
 
@@ -207,7 +192,7 @@ public class NetworkCall {
                                 }).execute();
                     } else {
                         // Attempt to upload route
-                        doRouteUpload(context, route);
+                        doRouteUpload(context, uiUpdate, route);
                     }
                 } else {
                     // Start and end not recorded so this isn't a valid route.  Delete it
@@ -221,8 +206,8 @@ public class NetworkCall {
         }
     }
 
-    private static void doRouteUpload(final Context context, final Route route) {
-        uploadRoute(context, route, false, new NetworkCallback() {
+    private static void doRouteUpload(final Context context, final ActivityUpdateInterface uiUpdate, final Route route) {
+        uploadRoute(context, route, false, uiUpdate, new NetworkCallback() {
             @Override
             public void onRequestCompleted(Object callbackData) {
                 // Update indicator to show route is uploaded

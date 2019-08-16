@@ -1,8 +1,5 @@
 package com.sk7software.mileageroutetracker.network;
 
-import android.app.Activity;
-import android.app.Application;
-import android.app.ProgressDialog;
 import android.content.Context;
 import android.graphics.Color;
 import android.os.AsyncTask;
@@ -13,10 +10,9 @@ import com.sk7software.mileageroutetracker.AppConstants;
 import com.sk7software.mileageroutetracker.R;
 import com.sk7software.mileageroutetracker.db.DatabaseUtil;
 import com.sk7software.mileageroutetracker.model.Route;
-import com.sk7software.mileageroutetracker.ui.MapsActivityUpdateInterface;
+import com.sk7software.mileageroutetracker.ui.ActivityUpdateInterface;
 import com.sk7software.mileageroutetracker.ui.UpdateUICallback;
 import com.sk7software.mileageroutetracker.location.LocationUtil;
-import com.sk7software.mileageroutetracker.util.PreferencesUtil;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -44,11 +40,9 @@ public class RoutePlanning extends AsyncTask<Void, Void, String> {
     private String url;
     private Route.RouteType routeType;
     private UpdateUICallback listener;
-    private MapsActivityUpdateInterface uiInterface;
+    private ActivityUpdateInterface uiInterface;
     private Context context;
     private LocationUtil loc;
-
-    private ProgressDialog progressDialog;
 
     private static final String TAG = RoutePlanning.class.getSimpleName();
 
@@ -57,7 +51,7 @@ public class RoutePlanning extends AsyncTask<Void, Void, String> {
                          LatLng dest,
                          Route.RouteType routeType,
                          Context context,
-                         MapsActivityUpdateInterface uiInterface,
+                         ActivityUpdateInterface uiInterface,
                          UpdateUICallback listener) {
         this.routeId = routeId;
         this.routeType = routeType;

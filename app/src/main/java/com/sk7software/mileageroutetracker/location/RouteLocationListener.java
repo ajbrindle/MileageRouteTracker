@@ -9,7 +9,7 @@ import android.util.Log;
 import com.google.android.gms.maps.model.LatLng;
 import com.sk7software.mileageroutetracker.AppConstants;
 import com.sk7software.mileageroutetracker.db.DatabaseUtil;
-import com.sk7software.mileageroutetracker.ui.MapsActivityUpdateInterface;
+import com.sk7software.mileageroutetracker.ui.ActivityUpdateInterface;
 import com.sk7software.mileageroutetracker.util.PreferencesUtil;
 
 import java.util.List;
@@ -19,13 +19,13 @@ public class RouteLocationListener implements LocationListener {
     private int routeId;
     private boolean first;
     private int pointType;
-    private MapsActivityUpdateInterface uiInterface;
+    private ActivityUpdateInterface uiInterface;
     private Context context;
 
     private static final String TAG = RouteLocationListener.class.getSimpleName();
 
     public RouteLocationListener(int routeId, boolean starting,
-                                 MapsActivityUpdateInterface uiInterface, Context context) {
+                                 ActivityUpdateInterface uiInterface, Context context) {
         this.routeId = routeId;
         this.uiInterface = uiInterface;
         this.context = context;
