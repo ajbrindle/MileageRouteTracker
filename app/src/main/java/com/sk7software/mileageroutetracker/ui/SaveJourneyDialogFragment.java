@@ -24,6 +24,7 @@ import com.sk7software.mileageroutetracker.db.DatabaseUtil;
 import com.sk7software.mileageroutetracker.location.LocationUtil;
 import com.sk7software.mileageroutetracker.model.Route;
 import com.sk7software.mileageroutetracker.network.NetworkCall;
+import com.sk7software.mileageroutetracker.task.SaveRouteTask;
 import com.sk7software.mileageroutetracker.util.PreferencesUtil;
 
 import java.util.List;
@@ -132,30 +133,13 @@ public class SaveJourneyDialogFragment extends DialogFragment implements Activit
                     route.setSummary(summary);
                 }
 
-                // Store the route in the device database
-                DatabaseUtil.getInstance(context).saveRoute(route);
+                // Kick off background task to store route and upload
+                progressDialogBuilder = new AlertDialog.Builder(context);
+                progressDialogBuilder.setView(R.layout.progress);
 
-                // Only attempt upload if route has been calculated
-                if (route.getDistance() >= 0) {
-
-                    progressDialogBuilder = new AlertDialog.Builder(context);
-                    progressDialogBuilder.setView(R.layout.progress);
-
-                    // Upload to server
-                    NetworkCall.uploadRoute(context, route, true,
-                            SaveJourneyDialogFragment.this, new NetworkCall.NetworkCallback() {
-                        @Override
-                        public void onRequestCompleted(Object callbackData) {
-                            Log.d(TAG, "Route uploaded");
-                        }
-
-                        @Override
-                        public void onError(Exception e) {
-                            Log.d(TAG, "Route upload failed: " + e.getMessage());
-                            showRouteUploadError();
-                        }
-                    });
-                }
+                // Create task to save route in the background
+                SaveRouteTask task = new SaveRouteTask(SaveJourneyDialogFragment.this, context);
+                task.execute(route);
                 resetDisplay = true;
             }
         })

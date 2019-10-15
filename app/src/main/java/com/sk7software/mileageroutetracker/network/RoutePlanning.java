@@ -73,8 +73,8 @@ public class RoutePlanning extends AsyncTask<Void, Void, String> {
                 // Fetching the data from web service
                 Log.d(TAG, "Directions: " + url.toString());
                 data = downloadUrl(url);
-                Log.d("Background Task data", data.toString());
-                Log.d("Background Task data", "Last bit of data: " + data.substring(data.length()-50));
+//                Log.d("Background Task data", data.toString());
+//                Log.d("Background Task data", "Last bit of data: " + data.substring(data.length()-50));
             } else {
                 Log.d(TAG, "Not making call as no URL to fetch");
             }
@@ -102,16 +102,16 @@ public class RoutePlanning extends AsyncTask<Void, Void, String> {
 
             try {
                 jObject = new JSONObject(jsonData);
-                Log.d(TAG, jsonData);
+//                Log.d(TAG, jsonData);
                 Log.d(TAG, "JSON Data status: " + jObject.getString("status"));
                 DataParser parser = new DataParser();
-                Log.d(TAG, parser.toString());
+//                Log.d(TAG, parser.toString());
 
                 // Starts parsing data
                 routes = parser.parse(jObject, routeType);
-                Log.d(TAG, "Executing routes");
-                Log.d(TAG, routes.toString());
-                Log.d(TAG, "Number of routes: " + routes.size());
+//                Log.d(TAG, "Executing routes");
+//                Log.d(TAG, routes.toString());
+//                Log.d(TAG, "Number of routes: " + routes.size());
 
             } catch (Exception e) {
                 Log.d("ParserTask", e.toString());
@@ -234,16 +234,16 @@ public class RoutePlanning extends AsyncTask<Void, Void, String> {
             StringBuffer sb = new StringBuffer();
 
             String line = "";
-            Log.d(TAG, "************* RETURNED DATA ***************");
+//            Log.d(TAG, "************* RETURNED DATA ***************");
             while ((line = br.readLine()) != null) {
-                Log.d(TAG, line);
+//                Log.d(TAG, line);
                 sb.append(line);
             }
-            Log.d(TAG, "************* END OF DATA ***************");
+//            Log.d(TAG, "************* END OF DATA ***************");
 
             data = sb.toString();
-            Log.d("downloadUrl", data.toString());
-            Log.d(TAG, "Last bit of data: " + data.substring(data.length()-50));
+//            Log.d("downloadUrl", data.toString());
+//            Log.d(TAG, "Last bit of data: " + data.substring(data.length()-50));
             br.close();
 
         } catch (Exception e) {
@@ -268,7 +268,7 @@ public class RoutePlanning extends AsyncTask<Void, Void, String> {
             try {
 
                 jRoutes = jObject.getJSONArray("routes");
-                Log.d(TAG, jRoutes.toString(2));
+//                Log.d(TAG, jRoutes.toString(2));
                 Log.d(TAG, "Number of routes in JSON Array: " + jRoutes.length());
 
                 /** Traversing all routes */
@@ -282,18 +282,18 @@ public class RoutePlanning extends AsyncTask<Void, Void, String> {
                     /** Traversing all legs */
                     for(int j=0;j<jLegs.length();j++){
                         distance += ((JSONObject)jLegs.get(j)).getJSONObject("distance").getInt("value");
-                        Log.d(TAG, "Leg: " + (j+1) + ", length: " + ((JSONObject)jLegs.get(j)).getJSONObject("distance").getString("text"));
+//                        Log.d(TAG, "Leg: " + (j+1) + ", length: " + ((JSONObject)jLegs.get(j)).getJSONObject("distance").getString("text"));
                         jSteps = ( (JSONObject)jLegs.get(j)).getJSONArray("steps");
-                        Log.d(TAG, "Leg: " + (j+1) + ", steps: " + jSteps.length());
+//                        Log.d(TAG, "Leg: " + (j+1) + ", steps: " + jSteps.length());
 
                         /** Traversing all steps */
                         for(int k=0;k<jSteps.length();k++){
-                            Log.d(TAG, "Step: " + k + "; " + ((JSONObject)jSteps.get(k)).get("html_instructions"));
+//                            Log.d(TAG, "Step: " + k + "; " + ((JSONObject)jSteps.get(k)).get("html_instructions"));
                             String polyline = "";
                             polyline = (String)((JSONObject)((JSONObject)jSteps.get(k)).get("polyline")).get("points");
                             List<LatLng> list = decodePoly(polyline);
                             path.addAll(list);
-                            Log.d(TAG, "Step: " + k + " completed");
+//                            Log.d(TAG, "Step: " + k + " completed");
                         }
                     }
 

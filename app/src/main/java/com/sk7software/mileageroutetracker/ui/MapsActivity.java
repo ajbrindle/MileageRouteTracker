@@ -101,6 +101,7 @@ public class MapsActivity extends AppCompatActivity
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
 
@@ -182,6 +183,9 @@ public class MapsActivity extends AppCompatActivity
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
+
+        // Log debug
+        //DatabaseUtil.getInstance(getApplicationContext()).debugLogging(10);
 
         // Check if there are any developer messages to display
         displayDevMessages();

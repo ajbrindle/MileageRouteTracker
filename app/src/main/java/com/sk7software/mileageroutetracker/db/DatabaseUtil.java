@@ -152,7 +152,7 @@ public class DatabaseUtil extends SQLiteOpenHelper {
                 "(route_id, created_ts) VALUES (?,?);";
         SQLiteStatement statement = database.compileStatement(sql);
 
-        int routeId = getNextId("ROUTE", "ROUTE_ID");
+        int routeId = getNextIdFromSaved();
         statement.bindLong(1, routeId);
         statement.bindLong(2, date.getTime());
         statement.executeInsert();
@@ -169,7 +169,7 @@ public class DatabaseUtil extends SQLiteOpenHelper {
                 "(route_id, created_ts) VALUES (?,?);";
         SQLiteStatement statement = database.compileStatement(sql);
 
-        int routeId = getNextId("ROUTE", "ROUTE_ID");
+        int routeId = getNextIdFromSaved();
         statement.bindLong(1, routeId);
         statement.bindLong(2, date.getTime());
         statement.executeInsert();
@@ -466,6 +466,17 @@ public class DatabaseUtil extends SQLiteOpenHelper {
         return routes;
     }
 
+    // Find next available id from routes and saved routes
+    private int getNextIdFromSaved() {
+        int maxId1 = getNextId("ROUTE", "ROUTE_ID");
+        int maxId2 = getNextId("SAVED_ROUTE", "ROUTE_ID");
+        if (maxId2 > maxId1) {
+            return maxId2;
+        } else {
+            return maxId1;
+        }
+    }
+
     // Find next available id
     private int getNextId(String table, String column) {
         int maxId = 1;
@@ -564,5 +575,49 @@ public class DatabaseUtil extends SQLiteOpenHelper {
 
     public SQLiteDatabase getDatabase() {
         return database;
+    }
+
+    public void debugLogging(int numRows) {
+        Cursor cursor = null;
+        List<Route> routes = new ArrayList<>();
+        Route r = null;
+
+        String sql = "SELECT r.route_id, r.created_ts " +
+                "FROM ROUTE r " +
+                "ORDER BY r.route_id DESC LIMIT " + numRows;
+        try {
+            cursor = database.rawQuery(sql, null);
+            while (cursor.moveToNext()) {
+                Log.d(TAG, "ROUTE: " + cursor.getInt(0) + " (" + new Date(cursor.getLong(1)) + ")");
+            }
+
+            cursor.close();
+            sql = "SELECT s.route_id, s.description, s.start_addr, s.end_addr, " +
+                    "s.distance_m, s.passenger_in " +
+                    "FROM SAVED_ROUTE s " +
+                    "ORDER BY s.route_id DESC LIMIT " + numRows;
+
+            cursor = database.rawQuery(sql, null);
+            while (cursor.moveToNext()) {
+                Log.d(TAG, "SAVED_ROUTE: " + cursor.getInt(0) + " - " +
+                        cursor.getString(1) + "; " +
+                        cursor.getString(2) + "; " +
+                        cursor.getString(3) + "; " +
+                        cursor.getInt(4) + "m");
+            }
+            cursor.close();
+            sql = "SELECT s.route_id, count(*) " +
+                    "FROM SAVED_MARKER s " +
+                    "GROUP BY s.route_id " +
+                    "ORDER BY s.route_id DESC LIMIT " + numRows;
+
+            cursor = database.rawQuery(sql, null);
+            while (cursor.moveToNext()) {
+                Log.d(TAG, "SAVED_MARKER: " + cursor.getInt(0) + " - " +
+                        cursor.getInt(1) + "; " + " points");
+            }
+        } finally {
+            cursor.close();
+        }
     }
 }
