@@ -4,8 +4,8 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.app.DatePickerDialog;
+import android.app.Dialog;
 import android.app.DialogFragment;
-import android.app.ProgressDialog;
 import android.app.TimePickerDialog;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -45,20 +45,19 @@ import com.sk7software.mileageroutetracker.AppConstants;
 import com.sk7software.mileageroutetracker.BuildConfig;
 import com.sk7software.mileageroutetracker.R;
 import com.sk7software.mileageroutetracker.db.DatabaseUtil;
+import com.sk7software.mileageroutetracker.location.RouteLocationListener;
+import com.sk7software.mileageroutetracker.model.DevMessage;
 import com.sk7software.mileageroutetracker.model.Route;
-import com.sk7software.mileageroutetracker.network.FetchUrl;
+import com.sk7software.mileageroutetracker.network.RoutePlanning;
 import com.sk7software.mileageroutetracker.network.NetworkCall;
-import com.sk7software.mileageroutetracker.util.LocationUtil;
+import com.sk7software.mileageroutetracker.location.LocationUtil;
 import com.sk7software.mileageroutetracker.util.PreferencesUtil;
 
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
-import java.util.Map;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
@@ -71,12 +70,13 @@ import static com.sk7software.mileageroutetracker.AppConstants.MODE_STOP;
 
 public class MapsActivity extends AppCompatActivity
         implements OnMapReadyCallback, EndJourneyDialogFragment.OnDialogDismissListener,
-        EnterJourneyDialogFragment.OnDialogDismissListener {
+        EnterJourneyDialogFragment.OnDialogDismissListener, ActivityUpdateInterface,
+        GoogleApiClient.ConnectionCallbacks {
 
     private GoogleMap mMap;
     private GoogleApiClient mGoogleApiClient;
     private List<Route> routes = new ArrayList<>();
-    private LocationUtil loc;
+    private LocationUtil locationUtil;
     private RouteLocationListener locationListener;
     private LocationManager locationManager;
     private Button btnStart;
@@ -87,16 +87,21 @@ public class MapsActivity extends AppCompatActivity
     private Button btnNext;
     private TextView txtInformation;
 
+    private AlertDialog.Builder progressDialogBuilder;
+    private Dialog progressDialog;
+
     private int reviewIdx;
     private int userId;
 
     public static final long REFRESH_INTERVAL = 1000 * 60 * 2; // 2 minutes
+    private static final int MIN_INTERVAL_MS = 30000;
     public static final int MIN_REFRESH_DISTANCE = 50;
 
     private static final String TAG = MapsActivity.class.getSimpleName();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
 
@@ -113,24 +118,18 @@ public class MapsActivity extends AppCompatActivity
         // Set up location services
         buildGoogleApiClient();
         locationManager = (LocationManager)getSystemService(Context.LOCATION_SERVICE);
-        loc = new LocationUtil(getApplicationContext(), mGoogleApiClient, MapsActivity.this);
+        locationUtil = LocationUtil.getInstance();
+        locationUtil.init(getApplicationContext(), mGoogleApiClient, MapsActivity.this);
+
+        // Create progress dialog for use later
+        progressDialogBuilder = new AlertDialog.Builder(MapsActivity.this);
+        progressDialogBuilder.setView(R.layout.progress);
 
         if (mode == MODE_REVIEW) {
-            // Go back to start mode
+            // Go back to start mode, as review mode doesn't get restored
             PreferencesUtil.getInstance().addPreference(AppConstants.PREFERENCE_MODE, AppConstants.MODE_START);
         }
 
-        NetworkCall.uploadMissingRoutes(getApplicationContext(), loc, new NetworkCall.NetworkCallback() {
-            @Override
-            public void onRequestCompleted(Map<String, Integer> callbackData) {
-                Log.d(TAG, "Uploading missing routes - check logs for individual progress");
-            }
-
-            @Override
-            public void onError(Exception e) {
-                Log.d(TAG, "Uploading missing routes FAILED");
-            }
-        });
         btnStart = (Button)findViewById(R.id.btnStart);
         btnStop = (Button)findViewById(R.id.btnStop);
         btnChoose = (Button)findViewById(R.id.btnChoose);
@@ -185,19 +184,11 @@ public class MapsActivity extends AppCompatActivity
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
 
+        // Log debug
+        //DatabaseUtil.getInstance(getApplicationContext()).debugLogging(10);
+
         // Check if there are any developer messages to display
-        String version = BuildConfig.VERSION_NAME;
-        NetworkCall.getDeveloperMessages(MapsActivity.this, userId, version, new NetworkCall.NetworkCallback() {
-            @Override
-            public void onRequestCompleted(Map<String, Integer> callbackData) {
-
-            }
-
-            @Override
-            public void onError(Exception e) {
-
-            }
-        });
+        displayDevMessages();
     }
 
 
@@ -210,6 +201,7 @@ public class MapsActivity extends AppCompatActivity
      * installed Google Play services and returned to the app.
      */
     @Override
+    @SuppressLint("MissingPermission")
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
         mMap.setOnMapLoadedCallback(new GoogleMap.OnMapLoadedCallback() {
@@ -229,9 +221,7 @@ public class MapsActivity extends AppCompatActivity
                     if (mode == MODE_STOP) {
                         // App was aborted while tracking a journey, so resume from here
                         int routeId = PreferencesUtil.getInstance().getIntPreference(AppConstants.PREFERENCE_ROUTE_ID);
-                        Criteria criteria = setUpdateCriteria();
-                        locationListener = new RouteLocationListener(routeId, false);
-                        locationManager.requestLocationUpdates(REFRESH_INTERVAL, MIN_REFRESH_DISTANCE, criteria, locationListener, null);
+                        listenForLocationUpdates(routeId, false);
                     }
                 }
             }
@@ -312,7 +302,7 @@ public class MapsActivity extends AppCompatActivity
                                                     // Show journey dialog
                                                     c.set(Calendar.HOUR_OF_DAY, hour);
                                                     c.set(Calendar.MINUTE, minute);
-                                                    loc.setStoredDate(c.getTime());
+                                                    locationUtil.setStoredDate(c.getTime());
                                                     DialogFragment enterJourney = new EnterJourneyDialogFragment();
                                                     enterJourney.show(getFragmentManager(), "journey");
                                                 }
@@ -328,38 +318,83 @@ public class MapsActivity extends AppCompatActivity
         }
     }
 
-    private void plotRoutes(int routeId, List<LatLng> startEnd) {
+    private void displayDevMessages() {
+        String version = BuildConfig.VERSION_NAME;
+        NetworkCall.getDeveloperMessages(MapsActivity.this, userId, version, new NetworkCall.NetworkCallback() {
+            @Override
+            public void onRequestCompleted(Object callbackData) {
+                List<DevMessage> messages = (List<DevMessage>)callbackData;
+                if (messages == null || messages.size() == 0) {
+                    // Do nothing
+                } else {
+                    DialogFragment devMessage = new DeveloperMessageDialogFragment();
+                    Bundle bundle = new Bundle();
+                    for (int i = 0; i < messages.size(); i++) {
+                        bundle.putSerializable("message" + i, messages.get(i));
+                    }
+
+                    devMessage.setArguments(bundle);
+                    devMessage.show(getFragmentManager(), "devmessage");
+                }
+            }
+
+            @Override
+            public void onError(Exception e) {
+
+            }
+        });
+    }
+
+    private void fetchAndPlotRoutes(final int routeId, final List<LatLng> startEnd) {
         // Checks, whether start and end locations are captured
         if (startEnd.size() == 2) {
             final LatLng origin = startEnd.get(0);
             final LatLng dest = startEnd.get(1);
 
-            // Getting URL to the Google Directions API
-            String url = getUrl(origin, dest, false);
-
             // This call will fetch the suggested routes between the start and end points
-            new FetchUrl(url, Route.RouteType.ROUTE_SUGGESTION, loc, MapsActivity.this,
+            new RoutePlanning(routeId, origin, dest, Route.RouteType.ROUTE_SUGGESTION,
+                              getApplicationContext(), MapsActivity.this,
                     new UpdateUICallback() {
                         @Override
-                        public void updateUI(List<Route> result) {
+                        public void onSuccess(List<Route> result) {
                             plotResult(result, true);
 
                             // Now make a second call, passing in waypoints captured on the journey
                             // This should return something close to the route actually taken
-                            String url = getUrl(origin, dest, true);
+                            new RoutePlanning(routeId, origin, dest, Route.RouteType.ROUTE_TAKEN,
+                                              getApplicationContext(), MapsActivity.this,
+                                    new UpdateUICallback() {
+                                        @Override
+                                        public void onSuccess(List<Route> result) {
+                                            plotResult(result, false);
+                                        }
 
-                            // Only do lookup if there are some waypoints that might make a difference
-                            // getUrl returns empty string if there are no waypoints to add
-                            if (url.length() > 0) {
-                                new FetchUrl(url, Route.RouteType.ROUTE_TAKEN, loc, MapsActivity.this,
-                                        new UpdateUICallback() {
-                                            @Override
-                                            public void updateUI(List<Route> result) {
-                                                plotResult(result, false);
-                                            }
-                                        }).execute();
+                                        @Override
+                                        public void onFailure() {
+                                            // No issue with this call failing, as suggested routes
+                                            // have already been provided
+                                            Log.d(TAG, "Failed to fetch route taken");
+                                        }
+                                    }).execute();
+                        }
 
-                            }
+                        @Override
+                        public void onFailure() {
+                            // Notify user that suggested routes could not be found and an attempt will be
+                            // made to recover on next run.  Make sure network is enabled
+                            new AlertDialog.Builder(MapsActivity.this)
+                                    .setTitle("Route")
+                                    .setMessage("There was an error looking up the route. " +
+                                            "Select the CHOOSE ROUTE button and save as usual. The missing " +
+                                            "information will be filled in and stored next time you run the app. " +
+                                            "Please ensure you have a good network connection.")
+                                    .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+                                        public void onClick(DialogInterface dialog, int which) {
+                                        }
+                                    })
+                                    .setIcon(android.R.drawable.ic_dialog_alert)
+                                    .show();
+
                         }
                     }).execute();
 
@@ -429,102 +464,78 @@ public class MapsActivity extends AppCompatActivity
         }
     }
 
-    private String getUrl(LatLng origin, LatLng dest, boolean useWayPoints) {
-
-        // Origin of route
-        String strOrigin = "origin=" + origin.latitude + "," + origin.longitude;
-
-        // Destination of route
-        String strDest = "destination=" + dest.latitude + "," + dest.longitude;
-
-        String strWaypoints = "";
-
-        if (useWayPoints) {
-            List<LatLng> waypoints = new ArrayList<>();
-            int routeId = PreferencesUtil.getInstance().getIntPreference(AppConstants.PREFERENCE_ROUTE_ID);
-
-            Log.d(TAG, "Fetching waypoints for route id: " + routeId);
-            DatabaseUtil db = DatabaseUtil.getInstance(getApplicationContext());
-            Route r = db.fetchWaypoints(routeId);
-
-            if (r.getPoints().size() == 0) {
-                // No waypoints, so nothing to look up
-                return "";
-            }
-
-            for (LatLng ll : r.getPoints()) {
-                waypoints.add(ll);
-                if (waypoints.size() > 15) break;
-            }
-//            waypoints.clear();
-//            waypoints.add(new LatLng(53.418506, -2.170879));
-//            DatabaseUtil.getInstance(getApplicationContext()).insertRoutePoint(routeId, 53.418506, -2.170879, 2);
-//            waypoints.add(new LatLng(53.445965, -2.179805));
-//            DatabaseUtil.getInstance(getApplicationContext()).insertRoutePoint(routeId, 53.445965, -2.179805, 2);
-//            waypoints.add(new LatLng(53.466201, -2.180203));
-//            DatabaseUtil.getInstance(getApplicationContext()).insertRoutePoint(routeId, 53.466201, -2.180203, 2);
-//            Log.d(TAG, "Added " + waypoints.size() + " waypoints");
-
-            // Waypoints
-            StringBuilder waypointLocations = new StringBuilder();
-            for (LatLng ll : waypoints) {
-                if (waypointLocations.length() > 0) {
-                    waypointLocations.append("|");
-                }
-                waypointLocations.append(ll.latitude);
-                waypointLocations.append(",");
-                waypointLocations.append(ll.longitude);
-            }
-
-            try {
-                strWaypoints = "&waypoints=" +
-                        URLEncoder.encode(waypointLocations.toString(), AppConstants.ENCODING);
-            } catch (UnsupportedEncodingException e) {
-                Log.e(TAG, "Unable to encode waypoints data: " + e.getMessage());
-                return "";
-            }
+    @Override
+    public void setProgress(boolean showProgressDialog, String progressMessage) {
+        if (showProgressDialog) {
+            progressDialog = progressDialogBuilder
+                    .setMessage(progressMessage)
+                    .create();
+            progressDialog.show();
         } else {
-            strWaypoints = "&alternatives=true";
+            if (progressDialog != null) {
+                progressDialog.dismiss();
+            }
         }
-
-        // Sensor enabled
-        String sensor = "sensor=false";
-
-        // Building the parameters to the web service
-        String parameters = strOrigin + "&" + strDest +
-                strWaypoints + "&" + sensor +
-                "&key=" + getString(R.string.MAPS_API_KEY);
-
-        // Output format
-        String output = "json";
-
-        // Building the url to the web service
-        String url = "https://maps.googleapis.com/maps/api/directions/" + output + "?" + parameters;
-
-        return url;
     }
 
+    @Override
+    public void updateMap(String infoText, List<LatLng> startEnd) {
+        txtInformation.setText(infoText);
+        setupMap(startEnd, true);
+    }
 
     private void showRoutes() {
-        DialogFragment confirmJourney = new EndJourneyDialogFragment();
-        Bundle bundle = new Bundle();
-        for (int i=0; i<routes.size(); i++) {
-            bundle.putSerializable("routes" + i, routes.get(i));
-        }
+        if (routes == null || routes.size() == 0) {
+            // Show save dialog
+            DialogFragment saveJourney = new SaveJourneyDialogFragment();
+            saveJourney.show(getFragmentManager(), "journey");
+        } else {
+            DialogFragment confirmJourney = new EndJourneyDialogFragment();
+            Bundle bundle = new Bundle();
+            for (int i = 0; i < routes.size(); i++) {
+                bundle.putSerializable("routes" + i, routes.get(i));
+            }
 
-        confirmJourney.setArguments(bundle);
-        confirmJourney.show(getFragmentManager(), "journey");
+            confirmJourney.setArguments(bundle);
+            confirmJourney.show(getFragmentManager(), "journey");
+        }
     }
 
     protected synchronized void buildGoogleApiClient() {
         mGoogleApiClient = new GoogleApiClient.Builder(this)
+                .addConnectionCallbacks(this)
                 .addApi(LocationServices.API)
                 .build();
         mGoogleApiClient.connect();
     }
 
+    @Override
+    public void onConnected(Bundle connectionHint) {
+        Log.d(TAG, "Google API Connected");
+
+        // Once client API is connected, it is possible to get missing information from previous journeys
+        // This is done silently in the background
+        NetworkCall.uploadMissingRoutes(getApplicationContext() , MapsActivity.this, new NetworkCall.NetworkCallback() {
+            @Override
+            public void onRequestCompleted(Object callbackData) {
+                Log.d(TAG, "Uploading missing routes - check logs for individual progress");
+            }
+
+            @Override
+            public void onError(Exception e) {
+                // Just log failure.  In future, send diagnostic info to developer
+                Log.d(TAG, "Uploading missing routes FAILED");
+            }
+        });
+    }
+
+    @Override
+    public void onConnectionSuspended(int cause) {
+        Log.d(TAG, "*** Google API Not Connected");
+    }
 
     public static final int MY_PERMISSIONS_REQUEST_LOCATION = 99;
+
     public boolean checkLocationPermission(){
         if (ContextCompat.checkSelfPermission(this,
                 Manifest.permission.ACCESS_FINE_LOCATION)
@@ -588,9 +599,9 @@ public class MapsActivity extends AppCompatActivity
     }
 
     private void createManualRoute(String startPostcode, String endPostcode) {
-        Date startDate = loc.getStoredDate();
-        Location start = loc.getLocationFromPostcode(startPostcode);
-        Location end = loc.getLocationFromPostcode(endPostcode);
+        Date startDate = locationUtil.getStoredDate();
+        Location start = locationUtil.getLocationFromPostcode(startPostcode);
+        Location end = locationUtil.getLocationFromPostcode(endPostcode);
 
         if (start != null && end != null) {
             PreferencesUtil.getInstance().addPreference(AppConstants.PREFERENCE_ROUTE_START_TIME,
@@ -688,11 +699,11 @@ public class MapsActivity extends AppCompatActivity
                 btnPrev.setVisibility(View.GONE);
                 btnNext.setVisibility(View.GONE);
                 startEnd = DatabaseUtil.getInstance(getApplicationContext())
-                        .fetchMarkerPoints(routeId).getPoints();
+                        .fetchStartEndPoints(routeId).getPoints();
                 infoText = "Route id: " + routeId + " ended at: " +
                         PreferencesUtil.getInstance().getStringPreference(AppConstants.PREFERENCE_ADDR_END);
                 setupMap(startEnd, true);
-                plotRoutes(routeId, startEnd);
+                fetchAndPlotRoutes(routeId, startEnd);
                 break;
             case MODE_REVIEW:
                 btnStart.setVisibility(View.GONE);
@@ -740,6 +751,7 @@ public class MapsActivity extends AppCompatActivity
         }
     }
 
+    @SuppressLint("MissingPermission")
     private void startJourney() {
         Date startDate = new Date();
 
@@ -755,12 +767,8 @@ public class MapsActivity extends AppCompatActivity
         PreferencesUtil.getInstance().addPreference(AppConstants.PREFERENCE_ROUTE_ID,
                 routeId);
 
-        // Set up criteria for location updates
-        Criteria criteria = setUpdateCriteria();
-
-        // Set up listener and start listening for location updates
-        locationListener = new RouteLocationListener(routeId, true);
-        locationManager.requestLocationUpdates(REFRESH_INTERVAL, MIN_REFRESH_DISTANCE, criteria, locationListener, null);
+        // Initialise location update listener
+        listenForLocationUpdates(routeId, true);
 
         // Amend screen layout
         setup();
@@ -768,32 +776,34 @@ public class MapsActivity extends AppCompatActivity
 
     @SuppressLint("MissingPermission")
     private void endJourney() {
-        final ProgressDialog progressDialog = new ProgressDialog(MapsActivity.this);
-        Location location = loc.getLastLocation();
+        Location location = locationUtil.getLastLocation();
 
         final int routeId = PreferencesUtil.getInstance().getIntPreference(AppConstants.PREFERENCE_ROUTE_ID);
 
-        long timeSinceLastUpdateMS = (location != null ? (new Date()).getTime() - location.getTime() : 30001);
+        long timeSinceLastUpdateMS = (location != null ? (new Date()).getTime() - location.getTime() : MIN_INTERVAL_MS+1);
 
         if (locationListener != null) {
             locationManager.removeUpdates(locationListener);
         }
 
-        if (timeSinceLastUpdateMS > 30000) {
+        if (timeSinceLastUpdateMS > MIN_INTERVAL_MS) {
             // Last update was over 30s ago so request current location
-            progressDialog.setMessage("Acquiring Location");
-            progressDialog.show();
+            setProgress(true, "Acquiring Location");
 
             Criteria criteria = setUpdateCriteria();
-
             locationManager.requestSingleUpdate(criteria, new LocationListener() {
                 @Override
                 public void onLocationChanged(Location location) {
+                    /****************************************************
+                     * TESTING ONLY
+                     ****************************************************
+                    location.setLatitude(53.4816282);;
+                    location.setLongitude(-2.2046857);
+                    /****************************************************
+                     * TESTING ONLY
+                     ****************************************************/
+                    setProgress(false, null);
                     storeEndJourney(routeId, location);
-
-                    if (progressDialog.isShowing()) {
-                        progressDialog.cancel();
-                    }
                 }
 
                 @Override
@@ -814,7 +824,7 @@ public class MapsActivity extends AppCompatActivity
     }
 
     private void storeStartJourney(int routeId, Location location) {
-
+        // Not implemented
     }
 
     private void storeEndJourney(int routeId, Location location) {
@@ -825,8 +835,14 @@ public class MapsActivity extends AppCompatActivity
                     location.getLatitude(),
                     location.getLongitude(),
                     AppConstants.POINT_END);
-        loc.storeAddress(location, AppConstants.PREFERENCE_ADDR_END);
+        locationUtil.storeAddress(location, AppConstants.PREFERENCE_ADDR_END);
         setup();
+    }
+
+    private void listenForLocationUpdates(int routeId, boolean starting) {
+        Criteria criteria = setUpdateCriteria();
+        locationListener = new RouteLocationListener(routeId, starting, MapsActivity.this, getApplicationContext());
+        locationManager.requestLocationUpdates(REFRESH_INTERVAL, MIN_REFRESH_DISTANCE, criteria, locationListener, null);
     }
 
     private Criteria setUpdateCriteria() {
@@ -835,71 +851,5 @@ public class MapsActivity extends AppCompatActivity
         criteria.setAltitudeRequired(false);
         criteria.setBearingRequired(false);
         return criteria;
-    }
-
-    public class RouteLocationListener implements LocationListener {
-
-        private int routeId;
-        private boolean first;
-        private int pointType;
-        private ProgressDialog progressDialog;
-
-        public RouteLocationListener(int routeId, boolean starting) {
-            this.routeId = routeId;
-            first = starting;
-            pointType = AppConstants.POINT_WAYPOINT;
-
-            if (first) {
-                pointType = AppConstants.POINT_START;
-            }
-
-            progressDialog = new ProgressDialog(MapsActivity.this);
-            progressDialog.setMessage("Acquiring Location");
-            progressDialog.show();
-        }
-
-        @Override
-        public void onLocationChanged(Location location) {
-            // Update running record of last location
-            Log.d(TAG, "Location changed: " + location);
-            loc.setLastLocation(location);
-
-            // Store point in database
-            DatabaseUtil.getInstance(getApplicationContext())
-                    .insertRoutePoint(routeId,
-                        location.getLatitude(),
-                        location.getLongitude(),
-                        pointType);
-
-            // On first update, set start address and set up map with marker
-            if (first) {
-                loc.storeAddress(location, AppConstants.PREFERENCE_ADDR_START);
-                List<LatLng> startEnd = DatabaseUtil.getInstance(getApplicationContext())
-                        .fetchMarkerPoints(routeId).getPoints();
-                String infoText = "Route id: " + routeId + " started at: " +
-                        PreferencesUtil.getInstance().getStringPreference(AppConstants.PREFERENCE_ADDR_START);
-                txtInformation.setText(infoText);
-                setupMap(startEnd, true);
-            }
-
-            first = false;
-            pointType = AppConstants.POINT_WAYPOINT;
-
-            if (progressDialog.isShowing()) {
-                progressDialog.cancel();
-            }
-        }
-
-        @Override
-        public void onStatusChanged(String s, int i, Bundle bundle) {
-        }
-
-        @Override
-        public void onProviderEnabled(String s) {
-        }
-
-        @Override
-        public void onProviderDisabled(String s) {
-        }
     }
 }

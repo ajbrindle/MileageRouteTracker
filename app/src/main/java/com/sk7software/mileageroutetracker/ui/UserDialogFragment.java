@@ -54,9 +54,10 @@ public class UserDialogFragment extends DialogFragment {
                     NetworkCall.checkUser(context, userName,
                             new NetworkCall.NetworkCallback() {
                                 @Override
-                                public void onRequestCompleted(Map<String, Integer> callbackData) {
-                                    if (callbackData.containsKey("id")) {
-                                        int id = callbackData.get("id");
+                                public void onRequestCompleted(Object callbackData) {
+                                    Map<String, Integer> userIdMap = (Map<String, Integer>)callbackData;
+                                    if (userIdMap.containsKey("id")) {
+                                        int id = userIdMap.get("id");
                                         if (id > 0) {
                                             PreferencesUtil.getInstance()
                                                     .addPreference(AppConstants.PREFERENCE_USER_ID, id);
@@ -78,11 +79,6 @@ public class UserDialogFragment extends DialogFragment {
                 }
             }
         });
-//                .setPositiveButton("OK", new DialogInterface.OnClickListener() {
-//                    @Override
-//                    public void onClick(DialogInterface dialog, int id) {
-//        });
-
         return builder.create();
     }
 }

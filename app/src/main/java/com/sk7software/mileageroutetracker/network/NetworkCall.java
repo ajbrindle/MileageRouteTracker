@@ -1,10 +1,6 @@
 package com.sk7software.mileageroutetracker.network;
 
-import android.app.Activity;
-import android.app.DialogFragment;
-import android.app.ProgressDialog;
 import android.content.Context;
-import android.os.Bundle;
 import android.util.Log;
 
 import com.android.volley.DefaultRetryPolicy;
@@ -16,14 +12,16 @@ import com.android.volley.toolbox.JsonArrayRequest;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
+import com.google.android.gms.maps.model.LatLng;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.sk7software.mileageroutetracker.AppConstants;
 import com.sk7software.mileageroutetracker.db.DatabaseUtil;
 import com.sk7software.mileageroutetracker.model.DevMessage;
 import com.sk7software.mileageroutetracker.model.Route;
-import com.sk7software.mileageroutetracker.ui.DeveloperMessageDialogFragment;
-import com.sk7software.mileageroutetracker.util.LocationUtil;
+import com.sk7software.mileageroutetracker.location.LocationUtil;
+import com.sk7software.mileageroutetracker.ui.ActivityUpdateInterface;
+import com.sk7software.mileageroutetracker.ui.UpdateUICallback;
 import com.sk7software.mileageroutetracker.util.PreferencesUtil;
 
 import org.json.JSONArray;
@@ -41,7 +39,6 @@ import java.util.Map;
 
 public class NetworkCall {
 
-    private static ProgressDialog progressDialog;
     private static RequestQueue queue;
 
     private static final String UPLOAD_URL = "http://www.sk7software.co.uk/mileage/upload.php";
@@ -51,7 +48,7 @@ public class NetworkCall {
     private static final String TAG = NetworkCall.class.getSimpleName();
 
     public interface NetworkCallback {
-        public void onRequestCompleted(Map<String, Integer>callbackData);
+        public void onRequestCompleted(Object callbackData);
         public void onError(Exception e);
     }
 
@@ -62,7 +59,8 @@ public class NetworkCall {
         return queue;
     }
 
-    public static void uploadRoute(final Context context, final Route route, boolean showProgress, final NetworkCallback callback) {
+    public static void uploadRoute(final Context context, final Route route, boolean showProgress,
+                                   final ActivityUpdateInterface uiUpdate, final NetworkCallback callback) {
         Gson gson = new GsonBuilder()
                 .setDateFormat(AppConstants.DATE_TIME_FORMAT)
                 .create();
@@ -79,9 +77,7 @@ public class NetworkCall {
                                 public void onResponse(JSONObject response) {
                                     // Update database to show route is uploaded
                                     DatabaseUtil.getInstance(context).updateUploadedRoute(route);
-                                    if (progressDialog.isShowing()) {
-                                        progressDialog.dismiss();
-                                    }
+                                    uiUpdate.setProgress(false, null);
                                     callback.onRequestCompleted(null);
                                 }
                             },
@@ -89,25 +85,17 @@ public class NetworkCall {
                                 @Override
                                 public void onErrorResponse(VolleyError error) {
                                     Log.d(TAG, "Error => " + error.toString());
-                                    if (progressDialog.isShowing()) {
-                                        progressDialog.dismiss();
-                                    }
+                                    uiUpdate.setProgress(false, null);
                                     callback.onError(error);
                                 }
                             }
                     );
             jsObjRequest.setRetryPolicy(new DefaultRetryPolicy(5000, 4, 1));
             getQueue(context).add(jsObjRequest);
-            progressDialog = new ProgressDialog(context);
-            progressDialog.setMessage("Saving Route");
-            if (showProgress) {
-                progressDialog.show();
-            }
+            uiUpdate.setProgress(showProgress, "Saving Route");
         } catch (JSONException e) {
             Log.d(TAG, "Error uploading route: " + e.getMessage());
-            if (progressDialog.isShowing()) {
-                progressDialog.dismiss();
-            }
+            uiUpdate.setProgress(false, null);
         }
     }
 
@@ -132,46 +120,106 @@ public class NetworkCall {
         getQueue(context).add(request);
     }
 
-    public static void uploadMissingRoutes(final Context context, final LocationUtil loc, final NetworkCallback callback) {
-        List<Route> routes = DatabaseUtil.getInstance(context).fetchRoutesNotUploaded();
+    public static void uploadMissingRoutes(final Context context, final ActivityUpdateInterface uiUpdate,
+                                           final NetworkCallback callback) {
+        final LocationUtil loc = LocationUtil.getInstance();
+        List<Route> missingRoutes = DatabaseUtil.getInstance(context).fetchRoutesNotUploaded();
 
-        if (routes.size() > 0) {
-            Log.d(TAG, "Attempting to upload " + routes.size() + " routes");
-            for (Route r : routes) {
+        if (missingRoutes.size() > 0) {
+            Log.d(TAG, "Attempting to upload " + missingRoutes.size() + " routes");
+            for (Route r : missingRoutes) {
+                // Copy to final var so it can be used in inner block
                 final Route route = r;
 
                 // Set user id
                 route.setUserId(PreferencesUtil.getInstance().getIntPreference(AppConstants.PREFERENCE_USER_ID));
 
-                // Determine if start or end address needs to be populated
-                if (route.isStartUnknown() || route.isEndUnknown()) {
-                    // Try lookup of start location again
-                    Route startEnd = DatabaseUtil.getInstance(context).fetchMarkerPoints(route.getId());
+                // Fetch the recorded start/end points for the route
+                Route startEnd = DatabaseUtil.getInstance(context).fetchStartEndPoints(route.getId());
+                route.setPoints(startEnd.getPoints());
 
-                    if (startEnd.getPoints().size() == 2) {
-                        route.setStartAddress(loc.getAddress(startEnd.getPoints().get(0)));
-                        route.setEndAddress(loc.getAddress(startEnd.getPoints().get(1)));
+                // Ensure start and end have been recorded
+                if (startEnd.getPoints().size() == 2) {
+                    LatLng start = startEnd.getPoints().get(0);
+                    LatLng end = startEnd.getPoints().get(r.getPoints().size() - 1);
+
+                    // Determine if start or end address needs to be populated
+                    Log.d(TAG, "Start: [" + route.getStartAddress() + "] End: [" + route.getEndAddress() + "]");
+                    if (route.isStartUnknown() || route.isEndUnknown()) {
+                        // Try lookup of start/end location again
+                        route.setStartAddress(loc.getAddress(start));
+                        route.setEndAddress(loc.getAddress(end));
+                        Log.d(TAG, "Start: [" + route.getStartAddress() + "] End: [" + route.getEndAddress() + "]");
                     }
+
+                    // Determine if route was calculated, or if this needs to be looked up now
+                    if (route.getDistance() < 0) {
+                        // Need to calculate route
+                        new RoutePlanning(route.getId(),
+                                start,
+                                end,
+                                Route.RouteType.ROUTE_SUGGESTION,
+                                context, null,
+                                new UpdateUICallback() {
+                                    @Override
+                                    public void onSuccess(List<Route> result) {
+                                        if (result != null && result.size() > 0) {
+                                            // Save the markers for the route (this requires the previously
+                                            // saved ones to be deleted first as the start/end were already
+                                            // saved when the route was set up
+                                            Route routeToUse = result.get(0);
+                                            routeToUse.setId(route.getId());
+
+                                            // Update the missing route with distance and start/end address
+                                            route.setDistance(routeToUse.getDistance());
+                                            DatabaseUtil.getInstance(context).updateSavedRoute(route);
+
+                                            // Save marker points for the route to use
+                                            DatabaseUtil.getInstance(context).deleteSavedMarkers(route.getId());
+                                            DatabaseUtil.getInstance(context).saveMarkers(routeToUse);
+
+                                            // Attempt to upload the completed route
+                                            doRouteUpload(context, uiUpdate, route);
+                                        }
+                                    }
+
+                                    @Override
+                                    public void onFailure() {
+                                        // There was an issue fetching the route so log this.  A further
+                                        // attempt will be made next time
+                                        Log.d(TAG, "Failed to fetch route for id: " + route.getId());
+                                    }
+                                }).execute();
+                    } else {
+                        // Attempt to upload route
+                        doRouteUpload(context, uiUpdate, route);
+                    }
+                } else {
+                    // Start and end not recorded so this isn't a valid route.  Delete it
+                    Log.d(TAG, "No valid start/end points so deleting route: " + route.getId());
+                    DatabaseUtil.getInstance(context).deleteRoute(route.getId());
+                    DatabaseUtil.getInstance(context).deleteSavedRoute(route.getId());
                 }
-
-                // Attempt to upload route
-                uploadRoute(context, route, false, new NetworkCallback() {
-                    @Override
-                    public void onRequestCompleted(Map<String, Integer> callbackData) {
-                        // Update indicator to show route is uploaded
-                        Log.d(TAG, "Route: " + route.getId() + " (" + route.getSummary() + ") uploaded");
-                    }
-
-                    @Override
-                    public void onError(Exception e) {
-                        Log.d(TAG, "Route: " + route.getId() + " (" + route.getSummary() + ") upload FAILED");
-                        Log.d(TAG, "ERROR: " + e.getMessage());
-                    }
-                });
             }
         } else {
             Log.d(TAG, "No routes to upload");
         }
+    }
+
+    private static void doRouteUpload(final Context context, final ActivityUpdateInterface uiUpdate, final Route route) {
+        uploadRoute(context, route, false, uiUpdate, new NetworkCallback() {
+            @Override
+            public void onRequestCompleted(Object callbackData) {
+                // Update indicator to show route is uploaded
+                Log.d(TAG, "Route: " + route.getId() + " (" + route.getSummary() + ") uploaded");
+            }
+
+            @Override
+            public void onError(Exception e) {
+                Log.d(TAG, "Route: " + route.getId() + " (" + route.getSummary() + ") upload FAILED");
+                Log.d(TAG, "ERROR: " + e.getMessage());
+            }
+        });
     }
 
     public static void getDeveloperMessages (final Context context, final int userId, final String version, final NetworkCallback callback) {
@@ -192,11 +240,10 @@ public class NetworkCall {
                                             DevMessage m = gson.fromJson(message.toString(), DevMessage.class);
                                             messages.add(m);
                                         }
-                                        Log.d(TAG, messages.toString());
 
-                                        // Popup fragment showing latest message
-                                        showMessage(context, messages);
-                                        callback.onRequestCompleted(null);
+                                        // Pass message list back to UI
+                                        Log.d(TAG, messages.toString());
+                                        callback.onRequestCompleted(messages);
                                     } catch (JSONException e) {
                                         Log.d(TAG, "Error getting dev messages: " + e.getMessage());
                                     }
@@ -241,19 +288,5 @@ public class NetworkCall {
         );
         request.setRetryPolicy(new DefaultRetryPolicy(5000, 4, 1));
         getQueue(context).add(request);
-    }
-
-    private static void showMessage(Context context, List<DevMessage> messages) {
-        if (messages == null || messages.size() == 0) {
-            return;
-        }
-        DialogFragment devMessage = new DeveloperMessageDialogFragment();
-        Bundle bundle = new Bundle();
-        for (int i=0; i<messages.size(); i++) {
-            bundle.putSerializable("message" + i, messages.get(i));
-        }
-
-        devMessage.setArguments(bundle);
-        devMessage.show(((Activity)context).getFragmentManager(), "devmessage");
     }
 }

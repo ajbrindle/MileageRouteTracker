@@ -111,11 +111,30 @@ public class DatabaseUtilTest {
         r = routes.get(0);
         assertEquals("N", r.getUploaded());
 
+        r.setStartAddress(new RouteAddress("Start", "DE1 2HF"));
+        r.setEndAddress(new RouteAddress("End", "RS1 2TU"));
+        r.setDistance(-99);
+        db.updateSavedRoute(r);
+        routes = db.fetchSavedRoutes(now, false);
+        r = routes.get(0);
+        assertEquals("DE1 2HF", r.getStartAddress());
+        assertEquals("RS1 2TU", r.getEndAddress());
+        assertEquals(-99, r.getDistance());
+        assertEquals("N", r.getUploaded());
+        assertEquals("unknown distance", r.getFormattedDistance());
+
         // Check that route upload is updated to Y
         db.updateUploadedRoute(r);
         routes = db.fetchSavedRoutes(now, false);
         r = routes.get(0);
         assertEquals("Y", r.getUploaded());
+    }
+
+    @Test
+    public void fetchTimestamp() {
+        Date now = new Date();
+        routeId = TestUtilities.insertFullRoute(db, now);
+        assertEquals(now.getTime(), db.fetchRouteTimestamp(routeId));
     }
 
     @Test
@@ -137,7 +156,7 @@ public class DatabaseUtilTest {
     @Test
     public void testFetchMarkers() {
         routeId = TestUtilities.insertFullRoute(db, new Date());
-        Route r = db.fetchMarkerPoints(routeId);
+        Route r = db.fetchStartEndPoints(routeId);
         assertTrue(r.getPoints().size() == 2);
         assertEquals(54.01234, r.getPoints().get(0).latitude, 0.0001);
         assertEquals(-2.65432, r.getPoints().get(1).longitude, 0.0001);
@@ -172,6 +191,37 @@ public class DatabaseUtilTest {
     }
 
     @Test
+    public void testFetchNotUploadedRoutes() throws Exception {
+        // Create 3 routes with dates yesterday, today, tomorrow
+        Date date = new Date();
+        date.setTime(date.getTime() - AppConstants.DATE_MS_IN_DAY);
+
+        for (int i=0; i<3; i++) {
+            routeId = TestUtilities.insertFullRoute(db, date);
+
+            Route r = db.fetchRoute(routeId);
+            r.setSummary("Test" + i);
+            r.setStartAddress(new RouteAddress("Start", "AB1 2CD"));
+            r.setEndAddress(new RouteAddress("End", "WX9 8YZ"));
+            r.setDistance(10000 + (i*1000));
+            r.setPassenger(true);
+            db.saveRoute(r);
+            date.setTime(date.getTime() + AppConstants.DATE_MS_IN_DAY);
+        }
+
+        List<Route> routes = db.fetchRoutesNotUploaded();
+        assertEquals(3, routes.size());
+
+        for (int i=0; i<routes.size(); i++) {
+            assertEquals(0, routes.get(i).getPoints().size());  // Markers are not fetched
+            assertEquals("Test" + i, routes.get(i).getSummary());
+            assertEquals("Y", routes.get(i).getPassenger());
+            assertEquals("AB1 2CD", routes.get(i).getStartAddress());
+            assertEquals(10000 + (i*1000), routes.get(i).getDistance());
+        }
+    }
+
+    @Test
     public void testDeleteRoutes() throws Exception {
         // Create 3 routes with dates 5, 4, 3 days ago
         Date date = new Date();
@@ -198,5 +248,39 @@ public class DatabaseUtilTest {
         assertEquals(1, countRows("SAVED_ROUTE", db));
         assertEquals(5, countRows("SAVED_MARKER", db));
         assertEquals(1, countRows("ROUTE", db));
+    }
+
+    @Test
+    public void testDeleteSavedRoutes() throws Exception {
+        // Create 3 routes with dates yesterday, today, tomorrow
+        Date date = new Date();
+        date.setTime(date.getTime() - AppConstants.DATE_MS_IN_DAY);
+        int secondRouteId = 0;
+
+        for (int i=0; i<3; i++) {
+            routeId = TestUtilities.insertFullRoute(db, date);
+
+            if (i==1) {
+                secondRouteId = routeId;
+            }
+
+            Route r = db.fetchRoute(routeId);
+            r.setSummary("Test" + i);
+            r.setStartAddress(new RouteAddress("Start", "AB1 2CD"));
+            r.setEndAddress(new RouteAddress("End", "WX9 8YZ"));
+            r.setDistance(10000);
+            r.setPassenger(true);
+            db.saveRoute(r);
+            date.setTime(date.getTime() + AppConstants.DATE_MS_IN_DAY);
+        }
+
+        db.deleteSavedRoute(secondRouteId);
+
+        List<Route> routes = db.fetchRoutesNotUploaded();
+        assertEquals(2, routes.size());
+
+        for (int i=0; i<routes.size(); i++) {
+            assertTrue(routes.get(i).getId() != secondRouteId);
+        }
     }
 }

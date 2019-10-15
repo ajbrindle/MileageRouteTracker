@@ -17,23 +17,28 @@ import android.widget.RadioButton;
 import android.widget.RadioGroup;
 import android.widget.TextView;
 
+import com.google.android.gms.maps.model.LatLng;
 import com.sk7software.mileageroutetracker.AppConstants;
 import com.sk7software.mileageroutetracker.R;
 import com.sk7software.mileageroutetracker.db.DatabaseUtil;
+import com.sk7software.mileageroutetracker.location.LocationUtil;
 import com.sk7software.mileageroutetracker.model.Route;
 import com.sk7software.mileageroutetracker.network.NetworkCall;
+import com.sk7software.mileageroutetracker.task.SaveRouteTask;
 import com.sk7software.mileageroutetracker.util.PreferencesUtil;
 
-import java.util.Map;
+import java.util.List;
 
 /**
  * Created by Andrew on 09/03/2018.
  */
 
-public class SaveJourneyDialogFragment extends DialogFragment {
+public class SaveJourneyDialogFragment extends DialogFragment implements ActivityUpdateInterface {
 
     private boolean resetDisplay = false;
     private Context context;
+    private AlertDialog.Builder progressDialogBuilder;
+    private Dialog progressDialog;
 
     private static final String TAG = SaveJourneyDialogFragment.class.getSimpleName();
 
@@ -46,8 +51,31 @@ public class SaveJourneyDialogFragment extends DialogFragment {
     @Override
     public Dialog onCreateDialog(Bundle savedInstanceState) {
         Bundle bundle = getArguments();
-        final Route route = (Route)bundle.getSerializable("route");
-        final Boolean showWarning = bundle.getBoolean("warn");
+        Route chosenRoute = new Route();
+        boolean routeCalculated = false;
+
+        if (bundle != null && bundle.containsKey("route")) {
+            // Populate chosen route from data passed in
+            chosenRoute = (Route) bundle.getSerializable("route");
+            routeCalculated = true;
+        } else {
+            // Set chosen route from data captured on current session
+            chosenRoute.setPoints(DatabaseUtil.getInstance(context)
+                    .fetchStartEndPoints(PreferencesUtil.getInstance().getIntPreference(AppConstants.PREFERENCE_ROUTE_ID))
+                    .getPoints());
+            chosenRoute.lookupAddresses(LocationUtil.getInstance());
+
+            // Use negative distance to indicate that route still needs to be calculated
+            chosenRoute.setDistance(-99);
+        }
+
+        Boolean showWarning = false;
+
+        if (bundle != null && bundle.containsKey("warn")) {
+            showWarning = bundle.getBoolean("warn");
+        }
+
+        final Route route = chosenRoute;
 
         // Use the Builder class for convenient dialog construction
         AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
@@ -105,21 +133,13 @@ public class SaveJourneyDialogFragment extends DialogFragment {
                     route.setSummary(summary);
                 }
 
-                // Store the route in the device database
-                DatabaseUtil.getInstance(context).saveRoute(route);
+                // Kick off background task to store route and upload
+                progressDialogBuilder = new AlertDialog.Builder(context);
+                progressDialogBuilder.setView(R.layout.progress);
 
-                // Upload to server
-                NetworkCall.uploadRoute(context, route, true, new NetworkCall.NetworkCallback() {
-                    @Override
-                    public void onRequestCompleted(Map<String, Integer> callbackData) {
-                        Log.d(TAG, "Route uploaded");
-                    }
-                    @Override
-                    public void onError(Exception e) {
-                        Log.d(TAG, "Route upload failed: " + e.getMessage());
-                        showRouteUploadError();
-                    }
-                });
+                // Create task to save route in the background
+                SaveRouteTask task = new SaveRouteTask(SaveJourneyDialogFragment.this, context);
+                task.execute(route);
                 resetDisplay = true;
             }
         })
@@ -154,4 +174,25 @@ public class SaveJourneyDialogFragment extends DialogFragment {
             ((EndJourneyDialogFragment.OnDialogDismissListener)activity).onDismiss(resetDisplay, -1);
         }
     }
+
+    @Override
+    public void setProgress(boolean showProgressDialog, String progressMessage) {
+        if (showProgressDialog) {
+            progressDialog = progressDialogBuilder
+                    .setMessage(progressMessage)
+                    .create();
+            progressDialog.show();
+        } else {
+            if (progressDialog != null) {
+                progressDialog.dismiss();
+            }
+        }
+
+    }
+
+    @Override
+    public void updateMap(String infoText, List<LatLng> startEnd) {
+        // Not implemented
+    }
+
 }
