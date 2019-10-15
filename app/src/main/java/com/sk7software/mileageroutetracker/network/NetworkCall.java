@@ -59,7 +59,7 @@ public class NetworkCall {
         return queue;
     }
 
-    public static void uploadRoute(final Context context, final Route route, boolean showProgress,
+    public static void uploadRoute(final Context context, final Route route,
                                    final ActivityUpdateInterface uiUpdate, final NetworkCallback callback) {
         Gson gson = new GsonBuilder()
                 .setDateFormat(AppConstants.DATE_TIME_FORMAT)
@@ -92,7 +92,6 @@ public class NetworkCall {
                     );
             jsObjRequest.setRetryPolicy(new DefaultRetryPolicy(5000, 4, 1));
             getQueue(context).add(jsObjRequest);
-            uiUpdate.setProgress(showProgress, "Saving Route");
         } catch (JSONException e) {
             Log.d(TAG, "Error uploading route: " + e.getMessage());
             uiUpdate.setProgress(false, null);
@@ -207,7 +206,7 @@ public class NetworkCall {
     }
 
     private static void doRouteUpload(final Context context, final ActivityUpdateInterface uiUpdate, final Route route) {
-        uploadRoute(context, route, false, uiUpdate, new NetworkCallback() {
+        uploadRoute(context, route, uiUpdate, new NetworkCallback() {
             @Override
             public void onRequestCompleted(Object callbackData) {
                 // Update indicator to show route is uploaded

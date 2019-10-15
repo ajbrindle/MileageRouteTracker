@@ -136,6 +136,7 @@ public class SaveJourneyDialogFragment extends DialogFragment implements Activit
                 // Kick off background task to store route and upload
                 progressDialogBuilder = new AlertDialog.Builder(context);
                 progressDialogBuilder.setView(R.layout.progress);
+                setProgress(true, "Saving Route");
 
                 // Create task to save route in the background
                 SaveRouteTask task = new SaveRouteTask(SaveJourneyDialogFragment.this, context);

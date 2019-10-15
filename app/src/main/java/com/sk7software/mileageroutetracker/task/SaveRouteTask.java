@@ -39,7 +39,7 @@ public class SaveRouteTask extends AsyncTask<Route, String, String> {
         if (route.getDistance() >= 0) {
 
             // Upload to server
-            NetworkCall.uploadRoute(context, route, true,
+            NetworkCall.uploadRoute(context, route,
                     uiUpdate, new NetworkCall.NetworkCallback() {
                         @Override
                         public void onRequestCompleted(Object callbackData) {
