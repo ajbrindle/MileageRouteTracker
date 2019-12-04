@@ -13,6 +13,10 @@ public class AppConstants {
     public static final String PREFERENCE_ROUTE_START_TIME = "PREF_ROUTE_START_TIME";
     public static final String PREFERENCE_MODE = "PREF_ROUTE_MODE";
     public static final String PREFERENCE_USER_ID = "PREF_USER";
+    public static final String PREFERENCE_USER_NAME = "PREF_USER_NAME";
+    public static final String PREFERENCE_USER_HOME = "PREF_USER_HOME";
+    public static final String PREFERENCE_USER_WORK = "PREF_USER_WORK";
+    public static final String PREFERENCE_USER_WORK_DISTANCE_M = "PREF_WORK_DISTANCE_M";
 
     public static final int POINT_START = 1;
     public static final int POINT_WAYPOINT = 2;

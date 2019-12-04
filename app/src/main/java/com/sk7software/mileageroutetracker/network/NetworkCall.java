@@ -16,6 +16,7 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.sk7software.mileageroutetracker.AppConstants;
+import com.sk7software.mileageroutetracker.R;
 import com.sk7software.mileageroutetracker.db.DatabaseUtil;
 import com.sk7software.mileageroutetracker.model.DevMessage;
 import com.sk7software.mileageroutetracker.model.Route;
@@ -45,6 +46,7 @@ public class NetworkCall {
     private static final String USER_URL = "http://www.sk7software.co.uk/mileage/user.php";
     private static final String DEV_MESSAGE_URL = "http://www.sk7software.co.uk/mileage/devmessage.php";
     private static final String DEV_MESSAGE_UPDATE_URL = "http://www.sk7software.co.uk/mileage/devmessageseen.php";
+    private static final String GOOGLE_DISTANCE_MATRIX_URL = "https://maps.googleapis.com/maps/api/distancematrix/json";
     private static final String TAG = NetworkCall.class.getSimpleName();
 
     public interface NetworkCallback {
@@ -98,13 +100,17 @@ public class NetworkCall {
         }
     }
 
-    public static void checkUser(final Context context, final String userName, final NetworkCallback callback) {
-        StringRequest request = new StringRequest(USER_URL + "?name=" + userName,
+    public static void checkUser(final Context context, final Map<String, String> params, final NetworkCallback callback) {
+        StringBuilder sb = new StringBuilder(USER_URL + "?");
+        for (Map.Entry<String, String> param : params.entrySet()) {
+            sb.append(param.getKey() + "=" + param.getValue());
+        }
+        StringRequest request = new StringRequest(sb.toString(),
                 new Response.Listener<String>() {
                     @Override
                     public void onResponse(String response) {
-                        Map<String, Integer> callbackData = new HashMap<>();
-                        callbackData.put("id", Integer.parseInt(response));
+                        Map<String, String> callbackData = new HashMap<>();
+                        callbackData.put("data", response);
                         callback.onRequestCompleted(callbackData);
                     }
                 },
@@ -287,5 +293,45 @@ public class NetworkCall {
         );
         request.setRetryPolicy(new DefaultRetryPolicy(5000, 4, 1));
         getQueue(context).add(request);
+    }
+
+    public static void fetchRouteDistance(final Context context, final String startPostCode,
+                                          final String endPostCode,
+                                          final NetworkCallback callback) {
+        final Gson gson = new GsonBuilder()
+                .create();
+
+        JsonObjectRequest jsObjRequest = new JsonObjectRequest
+                (Request.Method.GET, GOOGLE_DISTANCE_MATRIX_URL + "?origins=" + startPostCode +
+                                            "&destinations=" + endPostCode +
+                                            "&mode=driving" +
+                                            "&key=" + context.getString(R.string.MAPS_API_KEY),
+                        null,
+                        new Response.Listener<JSONObject>() {
+                            @Override
+                            public void onResponse(JSONObject response) {
+                                try {
+                                    JSONObject row = (JSONObject)response.getJSONArray("rows").get(0);
+                                    JSONObject element = (JSONObject)row.getJSONArray("elements").get(0);
+                                    JSONObject distance = (JSONObject)element.getJSONObject("distance");
+                                    Integer distanceM = Integer.parseInt(distance.get("value").toString());
+
+                                    // Pass message list back to UI
+                                    callback.onRequestCompleted(distanceM);
+                                } catch (JSONException e) {
+                                    Log.d(TAG, "Error getting distance matrix: " + e.getMessage());
+                                }
+                            }
+                        },
+                        new Response.ErrorListener() {
+                            @Override
+                            public void onErrorResponse(VolleyError error) {
+                                Log.d(TAG, "Error => " + error.toString());
+                                callback.onError(error);
+                            }
+                        }
+                );
+        jsObjRequest.setRetryPolicy(new DefaultRetryPolicy(5000, 1, 1));
+        getQueue(context).add(jsObjRequest);
     }
 }

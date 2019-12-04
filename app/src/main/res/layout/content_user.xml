@@ -18,11 +18,42 @@
         android:layout_height="wrap_content"
         android:paddingLeft="10dp"/>
 
+    <TextView
+        android:id="@+id/txtUserHomePrompt"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:paddingTop="20dp"
+        android:paddingBottom="10dp"
+        android:paddingLeft="10dp"
+        android:text="Enter your HOME postcode here:"/>
+
+    <EditText
+        android:id="@+id/txtUserHome"
+        android:layout_width="300dp"
+        android:layout_height="wrap_content"
+        android:paddingLeft="10dp"/>
+
+    <TextView
+        android:id="@+id/txtUserWorkPrompt"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:paddingTop="20dp"
+        android:paddingBottom="10dp"
+        android:paddingLeft="10dp"
+        android:text="Enter your WORK postcode here:"/>
+
+    <EditText
+        android:id="@+id/txtUserWork"
+        android:layout_width="300dp"
+        android:layout_height="wrap_content"
+        android:paddingLeft="10dp"/>
+
     <Button
         android:id="@+id/btnOK"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:padding="10dp"
+        android:paddingLeft="10dp"
+        android:paddingTop="20dp"
         android:text="OK" />
 
 </LinearLayout>

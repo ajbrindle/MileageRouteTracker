@@ -311,6 +311,11 @@ public class MapsActivity extends AppCompatActivity
                             }, c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DAY_OF_MONTH)).show();
                 }
                 return true;
+            case R.id.action_settings:
+                // Open settings dialog
+                DialogFragment getUserId = new UserDialogFragment();
+                getUserId.show(getFragmentManager(), "user");
+                return true;
             default:
                 // If we got here, the user's action was not recognized.
                 // Invoke the superclass to handle it.
