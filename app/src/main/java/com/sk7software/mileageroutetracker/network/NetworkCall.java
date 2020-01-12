@@ -320,6 +320,7 @@ public class NetworkCall {
                                     callback.onRequestCompleted(distanceM);
                                 } catch (JSONException e) {
                                     Log.d(TAG, "Error getting distance matrix: " + e.getMessage());
+                                    callback.onError(e);
                                 }
                             }
                         },

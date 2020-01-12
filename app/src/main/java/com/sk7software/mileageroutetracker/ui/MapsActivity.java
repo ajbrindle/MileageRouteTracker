@@ -212,8 +212,8 @@ public class MapsActivity extends AppCompatActivity
                 // Prompt for user if one has not been entered
                 if (userId < 1) {
                     // User not selected so pop dialog to choose it
-                    DialogFragment getUserId = new UserDialogFragment();
-                    getUserId.show(getFragmentManager(), "user");
+                    DialogFragment settings = new UserDialogFragment();
+                    settings.show(getFragmentManager(), "user");
                 } else {
                     int mode = PreferencesUtil.getInstance().getIntPreference(AppConstants.PREFERENCE_MODE);
 
@@ -313,8 +313,8 @@ public class MapsActivity extends AppCompatActivity
                 return true;
             case R.id.action_settings:
                 // Open settings dialog
-                DialogFragment getUserId = new UserDialogFragment();
-                getUserId.show(getFragmentManager(), "user");
+                DialogFragment settings = new UserDialogFragment();
+                settings.show(getFragmentManager(), "user");
                 return true;
             default:
                 // If we got here, the user's action was not recognized.

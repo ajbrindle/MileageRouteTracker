@@ -1,5 +1,7 @@
 package com.sk7software.mileageroutetracker;
 
+import java.text.DecimalFormat;
+
 /**
  * Created by Andrew on 29/10/2017
  */
@@ -31,4 +33,6 @@ public class AppConstants {
     public static final String DATE_FORMAT = "yyyy-MM-dd";
     public static final long DATE_MS_IN_DAY = 24*60*60*1000;
     public static final String ENCODING = "UTF-8";
+    public static final double METRES_TO_MILES = 0.000621371;
+    public static final DecimalFormat DEC_PL_1 = new DecimalFormat(".#");
 }

@@ -18,16 +18,18 @@ import com.sk7software.mileageroutetracker.R;
 import com.sk7software.mileageroutetracker.network.NetworkCall;
 import com.sk7software.mileageroutetracker.util.PreferencesUtil;
 
+import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 
-public class UserDialogFragment extends DialogFragment {
+import static com.sk7software.mileageroutetracker.AppConstants.DEC_PL_1;
+
+public class UserDialogFragment extends DialogFragment implements DialogCloseListener, Serializable {
 
     private Context context;
-    private EditText txtUserHome;
-    private EditText txtUserWork;
     private TextView txtUserPrompt;
     private EditText txtUserName;
+    private TextView txtDistMiles;
 
     private static final String TAG = UserDialogFragment.class.getSimpleName();
     private static final int MODE_USER_ID_LOOKUP = 0;
@@ -48,18 +50,16 @@ public class UserDialogFragment extends DialogFragment {
         builder.setView(view);
 
         txtUserPrompt = (TextView)view.findViewById(R.id.txtUserPrompt);
-        txtUserHome = (EditText)view.findViewById(R.id.txtUserHome);
-        txtUserWork = (EditText)view.findViewById(R.id.txtUserWork);
         txtUserName = (EditText)view.findViewById(R.id.txtUserName);
+        txtDistMiles = (TextView)view.findViewById(R.id.txtHomeWorkDistance);
         final Button btnOK = (Button)view.findViewById(R.id.btnOK);
+        final Button btnMiles = (Button)view.findViewById(R.id.btnMiles);
 
         builder.setMessage("User Name");
 
-        txtUserHome.setText(PreferencesUtil.getInstance().getStringPreference(AppConstants.PREFERENCE_USER_HOME));
-        txtUserWork.setText(PreferencesUtil.getInstance().getStringPreference(AppConstants.PREFERENCE_USER_WORK));
-
         // Set user name in field
         setUserNameText();
+        showDistance();
 
         btnOK.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -82,15 +82,36 @@ public class UserDialogFragment extends DialogFragment {
                 }
             }
         });
+
+        btnMiles.setOnClickListener(new View.OnClickListener(){
+            @Override
+            public void onClick(View view) {
+                DialogFragment homeWork = new HomeWorkDialogFragment();
+                Bundle b = new Bundle();
+                b.putSerializable("parent", UserDialogFragment.this);
+                homeWork.setArguments(b);
+                homeWork.show(getFragmentManager(), "miles");
+            }
+        });
+
         return builder.create();
     }
 
-    private void setHomeWorkDistance() {
-        String homePostCode = txtUserHome.getText().toString();
-        String workPostCode = txtUserWork.getText().toString();
+    @Override
+    public void onResume() {
+        super.onResume();
+        Log.d(TAG, "Resumed");
+        showDistance();
+    }
 
-        // Use Google distance matrix API to get distance between home and work
-        // https://maps.googleapis.com/maps/api/distancematrix/json?origins=<start postcode>&destinations=<end postcode>&units=metric
+    private void showDistance() {
+        Integer distanceM = PreferencesUtil.getInstance()
+                .getIntPreference(AppConstants.PREFERENCE_USER_WORK_DISTANCE_M);
+
+        if (distanceM > 0) {
+            double distanceMiles = (double)distanceM * AppConstants.METRES_TO_MILES;
+            txtDistMiles.setText(DEC_PL_1.format(distanceMiles) + " miles");
+        }
     }
 
     private void setUserNameText() {
@@ -149,5 +170,10 @@ public class UserDialogFragment extends DialogFragment {
             default:
                 // Do nothing
         }
+    }
+
+    @Override
+    public void handleDialogClose() {
+        showDistance();
     }
 }

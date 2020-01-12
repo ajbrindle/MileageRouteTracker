@@ -3,6 +3,7 @@ package com.sk7software.mileageroutetracker.model;
 import android.graphics.Color;
 
 import com.google.android.gms.maps.model.LatLng;
+import com.sk7software.mileageroutetracker.AppConstants;
 import com.sk7software.mileageroutetracker.location.LocationUtil;
 
 import java.io.Serializable;
@@ -11,14 +12,15 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
+import static com.sk7software.mileageroutetracker.AppConstants.DEC_PL_1;
+import static com.sk7software.mileageroutetracker.AppConstants.METRES_TO_MILES;
+
 /**
  * Created by Andrew on 03/03/2018
  */
 
 public class Route implements Serializable {
 
-    private static final double METRES_TO_MILES = 0.000621371;
-    private static final DecimalFormat DEC_PL_1 = new DecimalFormat(".#");
     private static int ID = 1;
 
     public enum RouteType {
