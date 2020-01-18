@@ -88,6 +88,7 @@ public class SaveJourneyDialogFragment extends DialogFragment implements Activit
         final TextView txtLabel = (TextView)view.findViewById(R.id.txtLabelOther);
         final RadioButton btnOther = (RadioButton)view.findViewById(R.id.optJourneyOther);
         final CheckBox chkPassenger = (CheckBox)view.findViewById(R.id.chkPassenger);
+        final CheckBox chkDeduct = (CheckBox)view.findViewById(R.id.chkDeduct);
 
         txtDescription.setVisibility(View.GONE);
         txtLabel.setVisibility(View.GONE);
@@ -125,6 +126,13 @@ public class SaveJourneyDialogFragment extends DialogFragment implements Activit
 
                 boolean hasPassenger = chkPassenger.isChecked();
                 route.setPassenger(hasPassenger);
+
+                // Deduct home-work mileage if required
+                if (chkDeduct.isChecked()) {
+                    route.setAdjustedDistance(getAdjustedDistance(route.getDistance()));
+                } else {
+                    route.setAdjustedDistance(route.getDistance());
+                }
 
                 if (checkedOption.getId() == R.id.optJourneyOther) {
                     route.setSummary(txtDescription.getText().toString());
@@ -196,4 +204,21 @@ public class SaveJourneyDialogFragment extends DialogFragment implements Activit
         // Not implemented
     }
 
+    private int getAdjustedDistance(int originalDistance) {
+        int homeWorkDistance = PreferencesUtil.getInstance()
+                .getIntPreference(AppConstants.PREFERENCE_USER_WORK_DISTANCE_M);
+
+        if (originalDistance < 0) {
+            // Original distance has not been worked out so return a dummy value that
+            // will indicate that an adjusted distance should be calculated later
+            return -999;
+        } else {
+            int adjustedDistance = originalDistance - homeWorkDistance;
+            if (adjustedDistance < 0) {
+                adjustedDistance = 0;
+            }
+
+            return adjustedDistance;
+        }
+    }
 }

@@ -40,6 +40,9 @@ public class Route implements Serializable {
     private RouteAddress endAddress;
     private String passenger;
     private String uploaded;
+    private int adjustedDistance;
+    private LatLng start;
+    private LatLng end;
 
     public Route() {
         synchronized(this) {
@@ -149,6 +152,14 @@ public class Route implements Serializable {
         return endAddress.isUnknown();
     }
 
+    public int getAdjustedDistance() {
+        return adjustedDistance;
+    }
+
+    public void setAdjustedDistance(int adjustedDistance) {
+        this.adjustedDistance = adjustedDistance;
+    }
+
     public void addPoint(LatLng ll) {
         points.add(ll);
     }
@@ -171,6 +182,13 @@ public class Route implements Serializable {
                     points.get(points.size()-1).longitude);
             startAddress = loc.getAddress(start);
             endAddress = loc.getAddress(end);
+        }
+    }
+
+    public void setStartEnd() {
+        if (points.size() > 0) {
+            start = points.get(0);
+            end = points.get(points.size()-1);
         }
     }
 }

@@ -66,6 +66,9 @@ public class NetworkCall {
         Gson gson = new GsonBuilder()
                 .setDateFormat(AppConstants.DATE_TIME_FORMAT)
                 .create();
+
+        // Set start and end points before serialising and removing other points
+        route.setStartEnd();
         String json = gson.toJson(route);
         Log.d(TAG, "Uploading: " + json);
         try {
@@ -177,6 +180,20 @@ public class NetworkCall {
 
                                             // Update the missing route with distance and start/end address
                                             route.setDistance(routeToUse.getDistance());
+
+                                            if (route.getAdjustedDistance() == -999) {
+                                                // Need to adjust it
+                                                int homeWorkDistance = PreferencesUtil.getInstance()
+                                                        .getIntPreference(AppConstants.PREFERENCE_USER_WORK_DISTANCE_M);
+                                                int adjustedDistance = route.getDistance() - homeWorkDistance;
+                                                if (adjustedDistance < 0) {
+                                                    adjustedDistance = 0;
+                                                }
+                                                route.setAdjustedDistance(adjustedDistance);
+                                            } else {
+                                                route.setAdjustedDistance(routeToUse.getDistance());
+                                            }
+
                                             DatabaseUtil.getInstance(context).updateSavedRoute(route);
 
                                             // Save marker points for the route to use

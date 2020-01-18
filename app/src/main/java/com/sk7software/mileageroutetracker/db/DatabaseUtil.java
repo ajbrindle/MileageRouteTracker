@@ -25,7 +25,7 @@ import static com.sk7software.mileageroutetracker.AppConstants.POINT_WAYPOINT;
 
 public class DatabaseUtil extends SQLiteOpenHelper {
 
-    public static final int DATABASE_VERSION = 3;
+    public static final int DATABASE_VERSION = 4;
     public static final String DATABASE_NAME = "com.sk7software.mileageroutetracker.db";
     private static final String TAG = DatabaseUtil.class.getSimpleName();
     private static final SimpleDateFormat DATE_TIME_FORMAT = new SimpleDateFormat(AppConstants.DATE_TIME_FORMAT);
@@ -144,6 +144,21 @@ public class DatabaseUtil extends SQLiteOpenHelper {
                             "ON SAVED_ROUTE(UPLOAD_IN);";
             db.execSQL(sqlStr);
         }
+
+        if (oldv <= 3 && newv >= 4) {
+            Log.d(TAG, "Creating version: " + newv);
+
+            // Add a field to indicate whether the route has been uploaded
+            sqlStr =
+                    "ALTER TABLE SAVED_ROUTE " +
+                            "ADD ADJUSTED_DISTANCE_M REAL;";
+            db.execSQL(sqlStr);
+
+            sqlStr =
+                    "UPDATE SAVED_ROUTE " +
+                            "SET ADJUSTED_DISTANCE_M = DISTANCE_M;";
+            db.execSQL(sqlStr);
+        }
     }
 
     // Create a route with the next available id, with the specified start time and location
@@ -202,8 +217,9 @@ public class DatabaseUtil extends SQLiteOpenHelper {
     // Save the route
     public void saveRoute(Route r) {
         String sql = "INSERT INTO SAVED_ROUTE " +
-                "(route_id, description, start_addr, end_addr, distance_m, upload_in, passenger_in) " +
-                "VALUES (?,?,?,?,?,?,?);";
+                "(route_id, description, start_addr, end_addr, " +
+                " distance_m, adjusted_distance_m, upload_in, passenger_in) " +
+                "VALUES (?,?,?,?,?,?,?,?);";
         SQLiteStatement statement = database.compileStatement(sql);
 
         Log.d(TAG, "Saving route: " + r.getId() + ";" +
@@ -211,6 +227,7 @@ public class DatabaseUtil extends SQLiteOpenHelper {
                 r.getStartAddress() + ";" +
                 r.getEndAddress() + ";" +
                 r.getDistance() + ";" +
+                r.getAdjustedDistance() + ";" +
                 r.getPoints().size() + " points");
 
         int col = 1;
@@ -219,6 +236,7 @@ public class DatabaseUtil extends SQLiteOpenHelper {
         statement.bindString(col++, r.getStartAddress());
         statement.bindString(col++, r.getEndAddress());
         statement.bindLong(col++, r.getDistance());
+        statement.bindLong(col++, r.getAdjustedDistance());
         statement.bindString(col++, "N");
         statement.bindString(col++, r.getPassenger());
         statement.executeInsert();
@@ -259,6 +277,7 @@ public class DatabaseUtil extends SQLiteOpenHelper {
     public void updateSavedRoute(Route r) {
         String sql = "UPDATE SAVED_ROUTE " +
                 "SET distance_m = ?, " +
+                "    adjusted_distance_m = ?," +
                 "    start_addr = ?," +
                 "    end_addr = ? " +
                 "WHERE route_id = ?;";
@@ -267,9 +286,10 @@ public class DatabaseUtil extends SQLiteOpenHelper {
         Log.d(TAG, "Updating route: " + r.getId());
 
         statement.bindLong(1, r.getDistance());
-        statement.bindString(2, r.getStartAddress());
-        statement.bindString(3, r.getEndAddress());
-        statement.bindLong(4, r.getId());
+        statement.bindLong(2, r.getAdjustedDistance());
+        statement.bindString(3, r.getStartAddress());
+        statement.bindString(4, r.getEndAddress());
+        statement.bindLong(5, r.getId());
         statement.executeUpdateDelete();
         statement.close();
     }
@@ -593,7 +613,7 @@ public class DatabaseUtil extends SQLiteOpenHelper {
 
             cursor.close();
             sql = "SELECT s.route_id, s.description, s.start_addr, s.end_addr, " +
-                    "s.distance_m, s.passenger_in " +
+                    "s.distance_m, s.adjusted_distance_m, s.passenger_in " +
                     "FROM SAVED_ROUTE s " +
                     "ORDER BY s.route_id DESC LIMIT " + numRows;
 
@@ -603,7 +623,8 @@ public class DatabaseUtil extends SQLiteOpenHelper {
                         cursor.getString(1) + "; " +
                         cursor.getString(2) + "; " +
                         cursor.getString(3) + "; " +
-                        cursor.getInt(4) + "m");
+                        cursor.getInt(4) + "m; " +
+                        cursor.getInt(5) + "m");
             }
             cursor.close();
             sql = "SELECT s.route_id, count(*) " +

@@ -56,4 +56,10 @@
         android:layout_height="wrap_content"
         android:text="Tick if carrying a passenger" />
 
+    <CheckBox
+        android:id="@+id/chkDeduct"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Tick to deduct home to office mileage" />
+
 </LinearLayout>
